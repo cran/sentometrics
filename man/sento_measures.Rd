@@ -22,8 +22,9 @@ A \code{sentomeasures} object, which is a \code{list} containing:
 \item{by}{a single \code{character} vector specifying the time interval of aggregation used.}
 \item{stats}{a \code{data.frame} with a series of elementary statistics (mean, standard deviation, maximum, minimum, and
 average correlation with all other measures) for each individual sentiment measure.}
-\item{sentiment}{the sentiment scores \code{data.table} with \code{"date"} and lexicon--feature sentiment scores columns.
-If \code{ctr$do.ignoreZeros = TRUE}, all zeros are replaces by \code{NA}.}
+\item{sentiment}{the sentiment scores \code{data.table} with \code{"date"}, \code{"word_count"} and lexicon--feature
+sentiment scores columns.
+If \code{ctr$do.ignoreZeros = TRUE}, all zeros are replaced by \code{NA}.}
 \item{howWithin}{a single \code{character} vector to remind how sentiment within documents was aggregated.}
 \item{howDocs}{a single \code{character} vector to remind how sentiment across documents was aggregated.}
 \item{fill}{a single \code{character} vector that specifies if and how missing dates have been added before
@@ -45,7 +46,7 @@ data("valence")
 
 # construct a sentomeasures object to start with
 corpus <- sento_corpus(corpusdf = usnews)
-corpusSample <- quanteda::corpus_sample(corpus, size = 750)
+corpusSample <- quanteda::corpus_sample(corpus, size = 500)
 l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
 ctr <- ctr_agg(howWithin = "tf-idf",
                howDocs = "proportional",

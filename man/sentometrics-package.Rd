@@ -9,9 +9,9 @@
 The \pkg{sentometrics} package is designed to do time series analysis based on textual sentiment. It accounts
 for the intrinsic challenge that, for a given text, sentiment can be computed in many ways, as well as the large
 number of possibilities to pool sentiment across text and time. This additional layer of manipulation does not exist
-in standard time series analysis and text mining packages. As a final outcome, this package provides an automated means
-to econometrically model the impact of sentiment in texts on a given variable, by first computing a wide range of textual
-sentiment time series and then selecting those that are most informative. The package created therefore integrates the
+in standard time series analysis and text mining packages. The package also provides an automated means to
+econometrically model the impact of sentiment in texts on a given variable, by first computing a wide range of textual
+sentiment time series and then selecting those that are most informative. Altogether, \pkg{sentometrics} integrates the
 \emph{qualification} of sentiment from texts, the \emph{aggregation} into different sentiment measures and the optimized
 \emph{prediction} based on these measures.
 }
@@ -28,17 +28,18 @@ Please cite the package in publications. Use \code{citation("sentometrics")}.
 \section{Main functions}{
 
 \itemize{
+\item Feature generation: \code{\link{add_features}}
 \item Sentiment computation and aggregation into sentiment measures: \code{\link{sento_corpus}}, \code{\link{ctr_agg}},
-\code{\link{compute_sentiment}}, \code{\link{sento_measures}}, \code{\link{to_global}}
+\code{\link{compute_sentiment}}, \code{\link{sento_measures}}, \code{\link{merge_measures}}, \code{\link{to_global}}
 \item Sparse modelling: \code{\link{ctr_model}}, \code{\link{sento_model}}
 \item Prediction and post-modelling analysis: \code{\link{predict.sentomodel}}, \code{\link{retrieve_attributions}},
-\code{\link{perform_MCS}}
+\code{\link{plot_attributions}}, \code{\link{perform_MCS}}
 }
 }
 
 \section{Update}{
 
-The development version of the package is available at \url{https://github.com/sborms/sentometrics}.
+The development version of the package resides at \url{https://github.com/sborms/sentometrics}.
 }
 
 \seealso{

@@ -22,21 +22,20 @@ expand_lexicons <- function(lexicons, types = c(1, 2, 3), scores = c(-1, 2, 0.5)
     out <- lapply(c(0, types), function(x) {
       if (x == 0) return(l)
       else {f = funcs[[x]]; return(f(l, scores[[x]]))}
-      })
+    })
     return(rbindlist(out))
   })
   return(lexiconsExp) # expanded lexicons (original + copied and negated/amplified/deamplified words and scores)
 }
 
 # replaces valence words in texts and combines into bigrams
-include_valence <- function(texts, val, valIdentifier = c(" NOT_", " VERY_", " HARDLY_")) {
-  negators <- paste0(" ", paste0(val[val$t == 1, ]$x, collapse = " | "), " ")
-  amplif <- paste0(paste0(val[val$t == 2, ]$x, collapse = " |"), " ")
-  deamplif <- paste0(paste0(val[val$t == 3, ]$x, collapse = " |"), " ")
+include_valence <- function(texts, val, valIdentifier = c("NOT_", "VERY_", "HARDLY_")) {
+  negators <- paste0("\\b", paste0(val[val$t == 1, ]$x, collapse = " \\b|\\b"), " \\b")
+  amplif <- paste0("\\b", paste0(val[val$t == 2, ]$x, collapse = " \\b|\\b"), " \\b")
+  deamplif <- paste0("\\b", paste0(val[val$t == 3, ]$x, collapse = " \\b|\\b"), " \\b")
   all <- c(negators, amplif, deamplif)
   for (i in seq_along(all)) {
-    if (all[i] != " ")
-      texts <- stringi::stri_replace_all(texts, valIdentifier[i], regex = all[i])
+    if (all[i] != "\\b \\b") texts <- stringi::stri_replace_all(texts, valIdentifier[i], regex = all[i])
   }
   return(texts)
 }
@@ -114,12 +113,9 @@ exponentials <- function(n, alphas = seq(0.1, 0.5, by = 0.1)) {
 }
 
 setup_time_weights <- function(lag, how, ...) {
-
   dots <- tryCatch(list(...)[[1]], # extract list from list of list (... a list to match with functions in sentomeasures.R)
                    error = function(x) list(...)) # if ... is empty
-
   if (!all(how %in% get_hows()$time)) stop("Please select an appropriate aggregation 'how'.")
-
   weights <- data.frame(row.names = 1:lag)
   if ("equal_weight" %in% how) {
     weights <- cbind(weights, data.frame(equal_weight = matrix(1/lag, nrow = lag, ncol = 1)))
@@ -136,7 +132,6 @@ setup_time_weights <- function(lag, how, ...) {
   if ("own" %in% how) {
     weights <- cbind(weights, dots$weights)
   }
-
   return(weights)
 }
 
@@ -145,6 +140,11 @@ setup_time_weights <- function(lag, how, ...) {
 #' @description Call for information purposes only. Used within \code{\link{ctr_agg}} to check if supplied
 #' aggregation hows are supported.
 #'
+#' @details See the package's \href{https://ssrn.com/abstract=3067734}{vignette} for a thoughtful explanation of
+#' the different aggregation options. The \code{howWithin = "proportionalPol"} option divides each document's
+#' initial sentiment score by the number of polarized words found in the document (counting each word only once
+#' would it appear multiple times), instead of the total number of words which the \code{"proportional"} option gives.
+#'
 #' @return A list with the supported aggregation hows for arguments \code{howWithin} (\code{"words"}), \code{howDows}
 #' (\code{"docs"}) and \code{howTime} (\code{"time"}), to be supplied to \code{\link{ctr_agg}}.
 #'
@@ -152,16 +152,14 @@ setup_time_weights <- function(lag, how, ...) {
 #'
 #' @export
 get_hows <- function() {
-  words <- c("proportional", "tf-idf", "counts")
+  words <- c("proportional", "proportionalPol", "tf-idf", "counts")
   docs <- c("equal_weight", "proportional")
   time <- c("equal_weight", "almon", "linear", "exponential", "own")
   return(list(words = words, docs = docs, time = time))
 }
 
 create_cv_slices <- function (y, trainWindow, testWindow = 1, skip = 0, do.reverse = FALSE) {
-
   if ((trainWindow + skip + testWindow) >= length(y)) stop("(trainWindow + skip + testWindow) >= length(y).")
-
   if (do.reverse) {
     stops <- seq(along = y)[(length(y)):(trainWindow + skip + testWindow)]
     test <- mapply(seq, stops - skip - trainWindow, stops - skip - trainWindow - testWindow + 1, SIMPLIFY = FALSE)
@@ -173,7 +171,6 @@ create_cv_slices <- function (y, trainWindow, testWindow = 1, skip = 0, do.rever
   starts <- stops - trainWindow + 1
   train <- mapply(seq, starts, stops, SIMPLIFY = FALSE)
   names(train) <- paste("Training", gsub(" ", "0", format(seq(along = train))), sep = "")
-
   return(list(train = train, test = test))
 }
 
@@ -340,5 +337,44 @@ pdf_manual <- function(wd) {
   setwd(wd)
   shell('R CMD Rd2pdf --encoding=UTF-8 sentometrics')
   setwd(paste0(wd, "/sentometrics"))
+}
+
+# this function is directly taken from the sentimentr package
+# (the as_key() function) but copied to bring R version
+# depends down and decrease number of dependencies by one
+# the function is slightly simplified (only 1 argument)
+sento_as_key <- function (x, ...) {
+  stopifnot(is.data.frame(x))
+  culprits <- NULL
+  if (length(x[[1]]) != length(unique(x[[1]]))) {
+    tab <- table(x[[1]])
+    culprits <- paste(paste0("   * ", sort(names(tab[tab > 1]))), collapse = "\n")
+    warning("One or more terms in the first column are repeated. Terms must be unique.\n  ",
+            "I found the following likely culprits:\n\n", culprits,
+            "\n\nThese terms have been dropped.\n")
+  }
+  if (any(grepl("[A-Z]", x[[1]]))) {
+    culprits2 <- grep("[A-Z]", x[[1]], value = TRUE)
+    culprits2 <- paste(paste0("   * ", culprits2), collapse = "\n")
+    warning("One or more terms in the first column contain capital letters. Capitals are ignored.\n  ",
+            "I found the following suspects:\n\n", culprits2,
+            "\n\nThese terms have been lower cased.\n")
+    x[[1]] <- tolower(x[[1]])
+  }
+  if (is.factor(x[[1]])) {
+    warning("Column 1 was a factor...\nConverting to character.")
+    x[[1]] <- as.character(x[[1]])
+  }
+  if (!is.character(x[[1]]))
+    stop("Column 1 must be character.")
+  if (!is.numeric(x[[2]]))
+    stop("Column 2 must be numeric.")
+  colnames(x) <- c("x", "y")
+  data.table::setDT(x)
+  x <- x[order(x), ]
+  if (!is.null(culprits))
+    x <- x[!x %in% sort(names(tab[tab > 1])), ]
+  data.table::setkey(x, "x")
+  x
 }
 

@@ -15,16 +15,15 @@ compute_sentiment(sentocorpus, lexicons, how = get_hows()$words, dfm = NULL)
 available options on how aggregation can occur, see \code{\link{get_hows}()$words}.}
 
 \item{dfm}{optional; an output from a \pkg{quanteda} \code{\link[quanteda]{dfm}} call, such that users can specify their
-own tokenization scheme (via \code{\link[quanteda]{tokens}}) as well as other parameters related to the construction of
-a document-feature matrix (dfm). By default, a dfm is created based on a tokenization that removes punctuation, numbers,
-symbols and separators. We suggest to stick to unigrams, as the remainder of the sentiment computation and built-in
-lexicons assume the same.}
+own tokenisation scheme (via \code{\link[quanteda]{tokens}}) as well as other parameters related to the construction of
+a document-feature matrix (dfm). Make sure the document-feature matrix is constructed from the texts in the
+\code{sentocorpus} object, otherwise, results will be spurious or errors may occur.}
 }
 \value{
 A \code{list} containing:
 \item{corpus}{the supplied \code{sentocorpus} object; the texts are altered if valence shifters are part of the lexicons.}
-\item{sentiment}{the sentiment scores \code{data.table} with a \code{"date"} and all lexicon--feature sentiment scores
-columns.}
+\item{sentiment}{the sentiment scores \code{data.table} with a \code{"date"} and a \code{"word_count"} column and all
+lexicon--feature sentiment scores columns.}
 \item{features}{a \code{character} vector of the different features.}
 \item{lexicons}{a \code{character} vector of the different lexicons used.}
 \item{howWithin}{a \code{character} vector to remind how sentiment within documents was aggregated.}
@@ -38,7 +37,11 @@ based on the lexicons provided and a choice of aggregation across words per docu
 For a separate calculation of positive (resp. negative) sentiment, one has to provide distinct positive (resp. negative)
 lexicons. This can be done using the \code{do.split} option in the \code{\link{setup_lexicons}} function, which splits out
 the lexicons into a positive and a negative polarity counterpart. \code{NA}s are converted to 0, under the assumption that
-this is equivalent to no sentiment.
+this is equivalent to no sentiment. By default, if the \code{dfm} argument is left unspecified, a document-feature
+matrix (dfm) is created based on a tokenisation that removes punctuation, numbers, symbols and separators, but does not
+remove stopwords. The number of words for each document is computed based on that some tokenisation. All tokens are
+converted to lowercase, in line with what the \code{\link{setup_lexicons}} function does for the lexicons and valence
+words.
 }
 \examples{
 data("usnews")
@@ -47,14 +50,15 @@ data("valence")
 
 # sentiment computation based on raw frequency counts
 corpus <- sento_corpus(corpusdf = usnews)
-corpusSample <- quanteda::corpus_sample(corpus, size = 1000)
+corpusSample <- quanteda::corpus_sample(corpus, size = 500)
 l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
 sent <- compute_sentiment(corpusSample, l, how = "counts")
 
 \dontrun{
 # same sentiment computation based on a user-supplied dfm with default settings
-dfm <- quanteda::dfm(quanteda::tokens(corpus), verbose = FALSE)
-sent <- compute_sentiment(corpusSample, l, how = "counts", dfm = dfm)}
+tok <- quanteda::tokens_tolower(quanteda::tokens(corpus))
+dfm <- quanteda::dfm(tok, verbose = FALSE)
+sent <- compute_sentiment(corpus, l, how = "counts", dfm = dfm)}
 
 }
 \seealso{

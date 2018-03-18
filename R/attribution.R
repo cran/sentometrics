@@ -1,5 +1,6 @@
 
 .retrieve_attributions.sentomodel <- function(model, sentomeasures, do.normalize = FALSE, refDates = NULL, factor = NULL) {
+  check_class(sentomeasures, "sentomeasures")
 
   sentomodel <- model
 
@@ -143,9 +144,11 @@
   return(attribsAll)
 }
 
+#' @importFrom compiler cmpfun
 #' @export
 retrieve_attributions.sentomodel <- compiler::cmpfun(.retrieve_attributions.sentomodel)
 
+#' @importFrom compiler cmpfun
 #' @export
 retrieve_attributions.sentomodeliter <- compiler::cmpfun(.retrieve_attributions.sentomodeliter)
 

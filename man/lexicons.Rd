@@ -20,23 +20,29 @@ data("lexicons")
 \description{
 A list containing all built-in lexicons as a \code{data.table} with two columns: a \code{x} column with the words, and a
 \code{y} column with the polarities. The list element names incorporate consecutively the name and language, and
-\code{"_tr"} as suffix if the lexicon is translated. The lexicons are in the format required for further sentiment analysis.
-The built-in lexicons are the following:
+\code{"_tr"} as suffix if the lexicon is translated. The translation was done via Microsoft Translator through Microsoft
+Word. Only the entries that conform to the original language entry after retranslation, and those that have actually been
+translated, are kept. The last condition is assumed to be fulfilled when the translation differs from the original entry.
+All words are in lowercase. The lexicons are in the format required for further sentiment analysis. The built-in lexicons
+are the following:
 
 \itemize{
-  \item FEEL_eng_tr (FEEL: French Expanded Emotion Lexicon)
+  \item FEEL_eng_tr (French Expanded Emotion Lexicon)
   \item FEEL_fr
   \item FEEL_nl_tr
-  \item GI_eng (GI: General Inquirer, i.e. Harvard IV-4 combined with Laswell)
+  \item GI_eng (General Inquirer, i.e. Harvard IV-4 combined with Laswell)
   \item GI_fr_tr
   \item GI_nl_tr
-  \item HENRY_eng (HENRY: Henry)
+  \item HENRY_eng (Henry)
   \item HENRY_fr_tr
   \item HENRY_nl_tr
-  \item LM_eng (LM: Loughran and McDonald)
+  \item LM_eng (Loughran and McDonald)
   \item LM_fr_tr
   \item LM_nl_tr
 }
+
+Other immediate lexicon options can be found in the \pkg{lexicon} package, more specifically the datasets preceded by
+\code{hash_sentiment_}.
 }
 \examples{
 lexicons[c("FEEL_eng_tr", "LM_eng")]

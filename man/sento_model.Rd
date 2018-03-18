@@ -62,12 +62,13 @@ performance metrics.
 Models are computed using the elastic net regularization as implemented in the \pkg{glmnet} package, to account for
 the multidimensionality of the sentiment measures. Additional explanatory variables are not subject to shrinkage. Independent
 variables are normalized in the regression process, but coefficients are returned in their original space. For a helpful
-introduction to \pkg{glmnet}, we refer to the \href{https://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html#lin}{vignette}.
-The optimal elastic net parameters \code{lambda} and \code{alpha} are calibrated either through a to specify information
-criterion or through cross-validation (based on the "rolling forecasting origin" principle, using the
-\code{\link[caret]{train}} function). In the latter case, the training metric is automatically set to \code{"RMSE"} for
-a linear model and to \code{"Accuracy"} for a logistic model. We suppress many of the details that can be supplied to the
-\code{\link[glmnet]{glmnet}} and \code{\link[caret]{train}} functions we rely on, for the sake of user-friendliness.
+introduction to \pkg{glmnet}, we refer to their
+\href{https://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html#lin}{vignette}. The optimal elastic net parameters
+\code{lambda} and \code{alpha} are calibrated either through a to specify information criterion or through
+cross-validation (based on the "rolling forecasting origin" principle, using the \code{\link[caret]{train}} function).
+In the latter case, the training metric is automatically set to \code{"RMSE"} for a linear model and to \code{"Accuracy"}
+for a logistic model. We suppress many of the details that can be supplied to the \code{\link[glmnet]{glmnet}} and
+\code{\link[caret]{train}} functions we rely on, for the sake of user-friendliness.
 }
 \examples{
 data("usnews")
@@ -80,9 +81,8 @@ corpusAll <- sento_corpus(corpusdf = usnews)
 corpus <- quanteda::corpus_subset(corpusAll, date >= "2004-01-01" & date < "2014-10-01")
 l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
 ctr <- ctr_agg(howWithin = "tf-idf", howDocs = "proportional",
-               howTime = c("equal_weight", "almon"),
-               by = "month", lag = 3, ordersAlm = 1:2,
-               do.inverseAlm = TRUE, do.normalizeAlm = TRUE)
+               howTime = c("equal_weight", "linear"),
+               by = "month", lag = 3)
 sentomeasures <- sento_measures(corpus, l, ctr)
 
 # prepare y and other x variables
@@ -95,9 +95,13 @@ colnames(x) <- c("x1", "x2")
 ctrIC <- ctr_model(model = "gaussian", type = "AIC", do.iter = FALSE, h = 0)
 out1 <- sento_model(sentomeasures, y, x = x, ctr = ctrIC)
 
-# some post-analysis (attribution)
+# some post-analysis (attribution and prediction)
 attributions1 <- retrieve_attributions(out1, sentomeasures,
                                        refDates = sentomeasures$measures$date[20:40])
+
+nx <- ncol(sentomeasures$measures) - 1 + ncol(x) # don't count date column
+newx <- runif(nx) * cbind(sentomeasures$measures[, -1], x)[30:40, ]
+preds <- predict(out1, newx = as.matrix(newx), type = "link")
 
 \dontrun{
 # a cross-validation based model
@@ -108,9 +112,8 @@ ctrCV <- ctr_model(model = "gaussian", type = "cv", do.iter = FALSE,
                    testWindow = 10, oos = 0, do.progress = TRUE)
 out2 <- sento_model(sentomeasures, y, x = x, ctr = ctrCV)
 stopCluster(cl)
-summary(out2)}
+summary(out2)
 
-\dontrun{
 # a cross-validation based model but for a binomial target
 yb <- epu[epu$date >= sentomeasures$measures$date[1], ]$above
 ctrCVb <- ctr_model(model = "binomial", type = "cv", do.iter = FALSE,
@@ -119,13 +122,16 @@ ctrCVb <- ctr_model(model = "binomial", type = "cv", do.iter = FALSE,
 out3 <- sento_model(sentomeasures, yb, x = x, ctr = ctrCVb)
 summary(out3)}
 
+\dontrun{
 # an example of an iterative analysis
 ctrIter <- ctr_model(model = "gaussian", type = "BIC", do.iter = TRUE,
                      alphas = c(0.25, 0.75), h = 0, nSample = 100, start = 21)
 out4 <- sento_model(sentomeasures, y, x = x, ctr = ctrIter)
 summary(out4)
 
-\dontrun{
+attributions2 <- retrieve_attributions(out4, sentomeasures)
+plot_attributions(attributions2, "features")
+
 # a similar iterative analysis, parallelized
 cl <- makeCluster(detectCores() - 2)
 registerDoParallel(cl)
@@ -134,14 +140,6 @@ ctrIter <- ctr_model(model = "gaussian", type = "Cp", do.iter = TRUE,
 out5 <- sento_model(sentomeasures, y, x = x, ctr = ctrIter)
 stopCluster(cl)
 summary(out5)}
-
-# some more post-analysis (attribution and prediction)
-attributions2 <- retrieve_attributions(out4, sentomeasures)
-plot_attributions(attributions2, "features")
-
-nx <- ncol(sentomeasures$measures) - 1 + ncol(x) # don't count date column
-newx <- runif(nx) * cbind(sentomeasures$measures[, -1], x)[30:50, ]
-preds <- predict(out1, newx = as.matrix(newx), type = "link")
 
 }
 \seealso{

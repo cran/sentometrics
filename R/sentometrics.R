@@ -4,23 +4,24 @@
 #' @description The \pkg{sentometrics} package is designed to do time series analysis based on textual sentiment. It accounts
 #' for the intrinsic challenge that, for a given text, sentiment can be computed in many ways, as well as the large
 #' number of possibilities to pool sentiment across text and time. This additional layer of manipulation does not exist
-#' in standard time series analysis and text mining packages. As a final outcome, this package provides an automated means
-#' to econometrically model the impact of sentiment in texts on a given variable, by first computing a wide range of textual
-#' sentiment time series and then selecting those that are most informative. The package created therefore integrates the
+#' in standard time series analysis and text mining packages. The package also provides an automated means to
+#' econometrically model the impact of sentiment in texts on a given variable, by first computing a wide range of textual
+#' sentiment time series and then selecting those that are most informative. Altogether, \pkg{sentometrics} integrates the
 #' \emph{qualification} of sentiment from texts, the \emph{aggregation} into different sentiment measures and the optimized
 #' \emph{prediction} based on these measures.
 #'
 #' @section Main functions:
 #' \itemize{
+#' \item Feature generation: \code{\link{add_features}}
 #' \item Sentiment computation and aggregation into sentiment measures: \code{\link{sento_corpus}}, \code{\link{ctr_agg}},
-#' \code{\link{compute_sentiment}}, \code{\link{sento_measures}}, \code{\link{to_global}}
+#' \code{\link{compute_sentiment}}, \code{\link{sento_measures}}, \code{\link{merge_measures}}, \code{\link{to_global}}
 #' \item Sparse modelling: \code{\link{ctr_model}}, \code{\link{sento_model}}
 #' \item Prediction and post-modelling analysis: \code{\link{predict.sentomodel}}, \code{\link{retrieve_attributions}},
-#' \code{\link{perform_MCS}}
+#' \code{\link{plot_attributions}}, \code{\link{perform_MCS}}
 #' }
 #'
 #' @section Update:
-#' The development version of the package is available at \url{https://github.com/sborms/sentometrics}.
+#' The development version of the package resides at \url{https://github.com/sborms/sentometrics}.
 #'
 #' @note The methodology behind the sentiment aggregation framework can be consulted in the working paper ``Questioning
 #' the news about economic growth: Sparse forecasting using thousands of news-based sentiment values'' (Ardia, Bluteau, and
@@ -39,23 +40,29 @@
 #' @description
 #' A list containing all built-in lexicons as a \code{data.table} with two columns: a \code{x} column with the words, and a
 #' \code{y} column with the polarities. The list element names incorporate consecutively the name and language, and
-#' \code{"_tr"} as suffix if the lexicon is translated. The lexicons are in the format required for further sentiment analysis.
-#' The built-in lexicons are the following:
+#' \code{"_tr"} as suffix if the lexicon is translated. The translation was done via Microsoft Translator through Microsoft
+#' Word. Only the entries that conform to the original language entry after retranslation, and those that have actually been
+#' translated, are kept. The last condition is assumed to be fulfilled when the translation differs from the original entry.
+#' All words are in lowercase. The lexicons are in the format required for further sentiment analysis. The built-in lexicons
+#' are the following:
 #'
 #' \itemize{
-#'   \item FEEL_eng_tr (FEEL: French Expanded Emotion Lexicon)
+#'   \item FEEL_eng_tr (French Expanded Emotion Lexicon)
 #'   \item FEEL_fr
 #'   \item FEEL_nl_tr
-#'   \item GI_eng (GI: General Inquirer, i.e. Harvard IV-4 combined with Laswell)
+#'   \item GI_eng (General Inquirer, i.e. Harvard IV-4 combined with Laswell)
 #'   \item GI_fr_tr
 #'   \item GI_nl_tr
-#'   \item HENRY_eng (HENRY: Henry)
+#'   \item HENRY_eng (Henry)
 #'   \item HENRY_fr_tr
 #'   \item HENRY_nl_tr
-#'   \item LM_eng (LM: Loughran and McDonald)
+#'   \item LM_eng (Loughran and McDonald)
 #'   \item LM_fr_tr
 #'   \item LM_nl_tr
 #' }
+#'
+#' Other immediate lexicon options can be found in the \pkg{lexicon} package, more specifically the datasets preceded by
+#' \code{hash_sentiment_}.
 #'
 #' @usage data("lexicons")
 #'
@@ -78,8 +85,9 @@
 #' A list containing all built-in valence word lists, a \code{data.table} with three columns: a \code{x} column with the
 #' words, a \code{t} column with the type of valence words, and a \code{y} column with the values associated to each word and
 #' type of valence shifter. The list element names incorporate the language of the valence word list. All non-English word
-#' lists are translated. The valence word lists are in the form required for further sentiment analysis. The built-in valence
-#' word lists are the following:
+#' lists are translated via Microsoft Translator through Microsoft Word. Only the entries whose translation differs from
+#' the original entry are kept. The valence word lists are in the form required for further sentiment analysis. All words
+#' are in lowercase. The built-in valence word lists are the following:
 #'
 #' \itemize{
 #'   \item valence_eng

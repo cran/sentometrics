@@ -9,7 +9,8 @@ perform_agg(toAgg, ctr)
 \arguments{
 \item{toAgg}{output from a \code{\link{compute_sentiment}} call.}
 
-\item{ctr}{output from a \code{\link{ctr_agg}} call. The \code{"howWithin"} argument plays no more role.}
+\item{ctr}{output from a \code{\link{ctr_agg}} call. The \code{howWithin} argument plays no further role from
+this point on.}
 }
 \value{
 A \code{sentomeasures} object.
@@ -26,7 +27,7 @@ data("valence")
 
 # computation of sentiment and aggregation into sentiment measures
 corpus <- sento_corpus(corpusdf = usnews)
-corpusSample <- quanteda::corpus_sample(corpus, size = 1000)
+corpusSample <- quanteda::corpus_sample(corpus, size = 500)
 l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
 sent <- compute_sentiment(corpusSample, l, how = "counts")
 ctr <- ctr_agg(howTime = c("linear"), by = "year", lag = 3)
