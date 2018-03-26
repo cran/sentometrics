@@ -45,6 +45,8 @@ Other immediate lexicon options can be found in the \pkg{lexicon} package, more 
 \code{hash_sentiment_}.
 }
 \examples{
+data("lexicons", package = "sentometrics")
 lexicons[c("FEEL_eng_tr", "LM_eng")]
+
 }
 \keyword{datasets}

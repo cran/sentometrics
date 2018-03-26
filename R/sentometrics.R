@@ -12,8 +12,8 @@
 #'
 #' @section Main functions:
 #' \itemize{
-#' \item Feature generation: \code{\link{add_features}}
-#' \item Sentiment computation and aggregation into sentiment measures: \code{\link{sento_corpus}}, \code{\link{ctr_agg}},
+#' \item Feature generation: \code{\link{sento_corpus}}, \code{\link{add_features}}
+#' \item Sentiment computation and aggregation into sentiment measures: \code{\link{ctr_agg}},
 #' \code{\link{compute_sentiment}}, \code{\link{sento_measures}}, \code{\link{merge_measures}}, \code{\link{to_global}}
 #' \item Sparse modelling: \code{\link{ctr_model}}, \code{\link{sento_model}}
 #' \item Prediction and post-modelling analysis: \code{\link{predict.sentomodel}}, \code{\link{retrieve_attributions}},
@@ -66,15 +66,16 @@
 #'
 #' @usage data("lexicons")
 #'
+#' @examples
+#' data("lexicons", package = "sentometrics")
+#' lexicons[c("FEEL_eng_tr", "LM_eng")]
+#'
 #' @format A list with all built-in lexicons, appropriately named as \code{"NAME_language(_tr)"} .
 #'
 #' @source \href{http://www.lirmm.fr/~abdaoui/FEEL}{FEEL lexicon}
 #' @source \href{http://www.wjh.harvard.edu/~inquirer/spreadsheet_guide.htm}{GI lexicon}
 #' @source \href{https://study.sagepub.com/sites/default/files/1\%20Henry\%202008_0.pdf}{HENRY lexicon}
 #' @source \href{https://www3.nd.edu/~mcdonald/Word_Lists.html}{LM lexicon}
-#'
-#' @examples
-#' lexicons[c("FEEL_eng_tr", "LM_eng")]
 "lexicons"
 
 #' Built-in valence word lists
@@ -96,6 +97,10 @@
 #' }
 #'
 #' @usage data("valence")
+#'
+#' @examples
+#' data("valence", package = "sentometrics")
+#' valence["valence_eng"]
 #'
 #' @format A list with all built-in valence word lists, appropriately named.
 #'
@@ -124,7 +129,7 @@
 #' @usage data("usnews")
 #'
 #' @examples
-#' data("usnews")
+#' data("usnews", package = "sentometrics")
 #' usnews[3192, "text"]
 #' usnews[1:5, c("id", "date", "text")]
 #'
@@ -153,6 +158,10 @@
 #' }
 #'
 #' @usage data("epu")
+#'
+#' @examples
+#' data("epu", package = "sentometrics")
+#' head(epu)
 #'
 #' @format A \code{data.frame} with 417 rows and 4 columns.
 #'

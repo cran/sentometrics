@@ -14,7 +14,7 @@
 #' freedom' of the LASSO''; Zou, Hastie, Tibshirani et al., 2007), and "\code{cv}" (cross-validation based on the
 #' \code{\link[caret]{train}} function from the \pkg{caret} package). The adapted information criteria are currently
 #' only available for a linear regression.
-#' @param intercept a \code{logical}, \code{TRUE} by default fits an intercept.
+#' @param do.intercept a \code{logical}, \code{TRUE} by default fits an intercept.
 #' @param h an \code{integer} value that shifts the time series to have the desired prediction setup; \code{h = 0} means
 #' no change to the input data (nowcasting assuming data is aligned properly), \code{h > 0} shifts the dependent variable by
 #' \code{h} periods (i.e. rows) further in time (forecasting), \code{h < 0} shifts the independent variables by \code{h}
@@ -53,8 +53,8 @@
 #' ctrIC2 <- ctr_model(model = "gaussian", type = "AIC", do.iter = TRUE, h = 0, nSample = 100)
 #'
 #' # cross-validation based model control functions
-#' ctrCV1 <- ctr_model(model = "gaussian", type = "cv", do.iter = FALSE, h = 0, trainWindow = 250,
-#'                     testWindow = 4, oos = 0, do.progress = TRUE)
+#' ctrCV1 <- ctr_model(model = "gaussian", type = "cv", do.iter = FALSE, h = 0,
+#'                     trainWindow = 250, testWindow = 4, oos = 0, do.progress = TRUE)
 #' ctrCV2 <- ctr_model(model = "binomial", type = "cv", h = 0, trainWindow = 250,
 #'                     testWindow = 4, oos = 0, do.progress = TRUE)
 #' ctrCV3 <- ctr_model(model = "multinomial", type = "cv", h = 0, trainWindow = 250,
@@ -64,7 +64,7 @@
 #'
 #' @export
 ctr_model <- function(model = c("gaussian", "binomial", "multinomial"), type = c("BIC", "AIC", "Cp", "cv"),
-                      intercept = TRUE, do.iter = FALSE, h = 0, alphas = seq(0, 1, by = 0.20),
+                      do.intercept = TRUE, do.iter = FALSE, h = 0, alphas = seq(0, 1, by = 0.20),
                       nSample = NULL, trainWindow = NULL, testWindow = NULL, oos = 0, start = 1,
                       do.progress = TRUE, do.parallel = FALSE) {
 
@@ -72,8 +72,8 @@ ctr_model <- function(model = c("gaussian", "binomial", "multinomial"), type = c
   else if (!(model %in% c("gaussian", "binomial", "multinomial")))
     stop("Provide a proper modelling type.")
 
-  if (!is.logical(intercept))
-    stop("The argument 'intercept' should be a logical.")
+  if (!is.logical(do.intercept))
+    stop("The argument 'do.intercept' should be a logical.")
 
   if (length(type) > 1) type <- type[1]
   else if (!(type %in% c("BIC", "AIC", "Cp", "cv")))
@@ -114,7 +114,7 @@ ctr_model <- function(model = c("gaussian", "binomial", "multinomial"), type = c
 
   ctr_model <- list(model = model,
                     type = type,
-                    intercept = intercept,
+                    intercept = do.intercept,
                     do.iter = do.iter,
                     h = h,
                     nSample = nSample,
@@ -194,10 +194,10 @@ ctr_model <- function(model = c("gaussian", "binomial", "multinomial"), type = c
 #' \code{\link{retrieve_attributions}}
 #'
 #' @examples
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
-#' data("epu")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
+#' data("epu", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpusAll <- sento_corpus(corpusdf = usnews)
@@ -264,6 +264,7 @@ ctr_model <- function(model = c("gaussian", "binomial", "multinomial"), type = c
 #' stopCluster(cl)
 #' summary(out5)}
 #'
+#' @importFrom glmnet predict.glmnet predict.elnet predict.lognet predict.multnet
 #' @import foreach
 #' @export
 sento_model <- function(sentomeasures, y, x = NULL, ctr) {
@@ -275,6 +276,10 @@ sento_model <- function(sentomeasures, y, x = NULL, ctr) {
     stop("Number of rows or length for y, x and measures in sentomeasures must be equal.")
   if (sum(ncol(sentomeasures$measures) + ifelse(is.null(x), 0, ncol(x))) < 2)
     stop("There should be at least two explanatory variables out of sentomeasures and x combined.")
+  if (ctr$model == "binomial" && ifelse(is.factor(y), nlevels(y), NCOL(y)) > 2)
+    stop("At maximum two classes allowed in 'y' for a binomial model.")
+  if (ctr$model == "multinomial" && !(ifelse(is.factor(y), nlevels(y), NCOL(y)) > 2))
+    stop("At least three classes needed in 'y' for a multinomial model.")
 
   family <- ctr$model
   type <- ctr$type
@@ -549,7 +554,7 @@ model_performance <- function(yEst, yReal, family, dates, ...) {
     colnames(errors) <- c("DA", "error", "errorSq", "AD")
     meanErrors <- colMeans(errors[, -2], na.rm = TRUE)
 
-    raw <- data.frame(yReal, predicted = yEst, errors)
+    raw <- data.frame(response = yReal, predicted = yEst, errors)
     row.names(raw) <- dates
 
     errorsAll <- list(raw = raw,
@@ -676,10 +681,10 @@ print.sentomodeliter <- function(x, ...) {
 #'
 #' @examples
 #' \dontrun{
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
-#' data("epu")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
+#' data("epu", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpusAll <- sento_corpus(corpusdf = usnews)
@@ -787,10 +792,10 @@ predict.sentomodel <- function(object, newx, type, offset = NULL, ...) {
 #'
 #' @examples
 #' \dontrun{
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
-#' data("epu")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
+#' data("epu", package = "sentometrics")
 #'
 #' # construct two sentomeasures objects
 #' corpusAll <- sento_corpus(corpusdf = usnews)

@@ -47,6 +47,7 @@ include_valence <- function(texts, val, valIdentifier = c("NOT_", "VERY_", "HARD
 #'
 #' @details The Almon polynomial formula implemented is:
 #' \eqn{(1 - (i/n)^{b})(i/n)^{B - b}}{(1 - (i/n)^b) * (i/n)^(B - b)}, where \eqn{i} is the lag index from 1 to \eqn{n}.
+#' The inverse is computed by changing \eqn{i/n} to \eqn{1 - i/n}.
 #'
 #' @param n a single \code{numeric} to indicate the length of the curve (the number of lags, cf., \emph{n}).
 #' @param orders a \code{numeric} vector as the sequence of the Almon orders (cf., \emph{b}). The maximum value
@@ -187,7 +188,7 @@ align_variables <- function(y, sentomeasures, x, h, i = 1, nSample = NULL) {
     colnames(y) <- levs
   } else {
     y <- as.matrix(y)
-    if (length(colnames) == 1) colnames(y) <- "response"
+    if (NCOL(y) == 1) colnames(y) <- "response"
     row.names(y) <- NULL
   }
 

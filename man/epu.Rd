@@ -26,4 +26,9 @@ Monthly values of a news-based index of U.S. Economic Policy Uncertainty (EPU) b
   respectively and in a mutually exclusive sense.
 }
 }
+\examples{
+data("epu", package = "sentometrics")
+head(epu)
+
+}
 \keyword{datasets}

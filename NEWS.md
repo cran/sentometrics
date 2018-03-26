@@ -1,8 +1,15 @@
 
+## sentometrics 0.3.5
+
+- faster `to_global()`
+- set `tolower = FALSE` of `dfm()` constructor in `compute_sentiment()`
+- changed `intercept` argument to `do.intercept` for consistency
+- proper checks on values of feature columns in `sento_corpus()` and `add_features()`
+
 ## sentometrics 0.3.0
 
 - new functions: `diff()`, `extract_peakdocs()`, and `subset_measures()` 
-- modified R depends from 3.4.2 to 3.3.0, and dependency on sentimentr omitted
+- modified R depends from 3.4.2 to 3.3.0, and import of **`sentimentr`** omitted
 - word count per document now determined based on a separate tokenisation
 - improved valence shifters search (modified `incluce_valence()` helper function)
 - new option added for within-document aggregation (`"proportionalPol"`)

@@ -179,9 +179,9 @@ ctr_agg <- function(howWithin = "proportional", howDocs = "equal_weight", howTim
 #' @seealso \code{\link{compute_sentiment}}, \code{\link{perform_agg}}
 #'
 #' @examples
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
@@ -264,8 +264,8 @@ print.sentomeasures <- function(x, ...) {
 #' column of the valence word list.
 #'
 #' @examples
-#' data("lexicons")
-#' data("valence")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
 #'
 #' # sets up output list straight from built-in word lists including valence words
 #' l1 <- c(lexicons[c("LM_eng", "HENRY_eng")], valence[["eng"]])
@@ -355,7 +355,7 @@ setup_lexicons <- function(lexiconsIn, valenceIn = NULL, do.split = FALSE) {
   wCounts <- quanteda::ntoken(tok)
 
   if (is.null(dfm)) {
-      dfm <- quanteda::dfm(tok, verbose = FALSE) # rows are corpus ids, columns are words, values are frequencies
+      dfm <- quanteda::dfm(tok, tolower = FALSE, verbose = FALSE) # rows: corpus ids, columns: words, values: frequencies
   } else if (!quanteda::is.dfm(dfm)) stop("The 'dfm' argument should pass quanteda::is.dfm(dfm).")
 
   if (how == "counts" || how == "proportional" || how == "proportionalPol") {
@@ -429,7 +429,8 @@ setup_lexicons <- function(lexiconsIn, valenceIn = NULL, do.split = FALSE) {
 #' @param dfm optional; an output from a \pkg{quanteda} \code{\link[quanteda]{dfm}} call, such that users can specify their
 #' own tokenisation scheme (via \code{\link[quanteda]{tokens}}) as well as other parameters related to the construction of
 #' a document-feature matrix (dfm). Make sure the document-feature matrix is constructed from the texts in the
-#' \code{sentocorpus} object, otherwise, results will be spurious or errors may occur.
+#' \code{sentocorpus} object, otherwise, results will be spurious or errors may occur. Note that valence shifters will
+#' not be integrated into the features of a user-provided dfm.
 #'
 #' @return A \code{list} containing:
 #' \item{corpus}{the supplied \code{sentocorpus} object; the texts are altered if valence shifters are part of the lexicons.}
@@ -442,9 +443,9 @@ setup_lexicons <- function(lexiconsIn, valenceIn = NULL, do.split = FALSE) {
 #' @seealso \code{\link[quanteda]{dfm}}, \code{\link[quanteda]{tokens}}
 #'
 #' @examples
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
 #'
 #' # sentiment computation based on raw frequency counts
 #' corpus <- sento_corpus(corpusdf = usnews)
@@ -491,9 +492,9 @@ get_features_sentiment <- compiler::cmpfun(.get_features_sentiment)
 #' @seealso \code{\link{compute_sentiment}}, \code{\link{ctr_agg}}, \code{\link{sento_measures}}
 #'
 #' @examples
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
 #'
 #' # computation of sentiment and aggregation into sentiment measures
 #' corpus <- sento_corpus(corpusdf = usnews)
@@ -654,9 +655,9 @@ agg_time <- function(sentomeasures, lag, fill, how = get_hows()$time, ...) {
 #' @seealso \code{\link{merge_measures}}
 #'
 #' @examples
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
@@ -747,9 +748,9 @@ ctr_merge <- function(sentomeasures, features = NA, lexicons = NA, time = NA, do
 #' @seealso \code{\link{ctr_merge}}
 #'
 #' @examples
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
@@ -844,9 +845,9 @@ merge_measures <- function(ctr) {
 #' @seealso \code{\link{sento_model}}
 #'
 #' @examples
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
@@ -878,20 +879,15 @@ to_global <- function(sentomeasures, lexicons = 1, features = 1, time = 1) {
     names(w) <- dims[[i]] # named weight lists
     return(w)
   })
+
   measures <- sentomeasures$measures
   measuresLong <- to_long(measures) # long format
-
-  wLex <- unlist(weights[[1]][measuresLong[["lexicons"]]])
-  wFeat <- unlist(weights[[2]][measuresLong[["features"]]])
-  wTime <- unlist(weights[[3]][measuresLong[["time"]]])
-
-  globs <- data.table(
-    measuresLong[, list(global = mean(value * wLex)), by = date],
-    measuresLong[, list(global = mean(value * wFeat)), by = date][["global"]],
-    measuresLong[, list(global = mean(value * wTime)), by = date][["global"]]
-  )
-  setnames(globs, c("date", "globLex", "globFeat", "globTime"))
-
+  measuresLong[, "wLex" := unlist(weights[[1]][measuresLong[["lexicons"]]])] # weights lexicon
+  measuresLong[, "wFeat" := unlist(weights[[2]][measuresLong[["features"]]])] # weights features
+  measuresLong[, "wTime" :=- unlist(weights[[3]][measuresLong[["time"]]])] # weights time
+  globs <- measuresLong[, list(globLex = mean(value * wLex),
+                               globFeat = mean(value * wFeat),
+                               globTime = mean(value * wTime)), by = date]
   globs[["global"]] <- rowMeans(globs[, -1])
   global <- as.data.frame(globs)
   row.names(global) <- global$date
@@ -920,9 +916,9 @@ to_global <- function(sentomeasures, lexicons = 1, features = 1, time = 1) {
 #' and statistics, but the original sentiment scores \code{data.table} untouched.
 #'
 #' @examples
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
@@ -983,9 +979,9 @@ select_measures <- function(sentomeasures, toSelect, do.combine = TRUE) {
 #' and statistics, but the original sentiment scores \code{data.table} untouched.
 #'
 #' @examples
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
@@ -1045,9 +1041,9 @@ subset_measures <- function(sentomeasures, subset) {
 #' graphs plotted.
 #'
 #' @examples
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
@@ -1110,9 +1106,9 @@ plot.sentomeasures <- function(x, group = "all", ...) {
 #' @return A modified \code{sentomeasures} object.
 #'
 #' @examples
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
@@ -1167,9 +1163,9 @@ fill_measures <- function(sentomeasures, fill = "zero") {
 #' statistics.
 #'
 #' @examples
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
@@ -1215,9 +1211,9 @@ scale.sentomeasures <- function(x, center = TRUE, scale = TRUE) {
 #' the \code{n} extracted sentiment peak dates and associated document ids and texts.
 #'
 #' @examples
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
@@ -1266,9 +1262,9 @@ extract_peakdocs <- function(sentomeasures, sentocorpus, n = 10, type = "both", 
 #' statistics.
 #'
 #' @examples
-#' data("usnews")
-#' data("lexicons")
-#' data("valence")
+#' data("usnews", package = "sentometrics")
+#' data("lexicons", package = "sentometrics")
+#' data("valence", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)

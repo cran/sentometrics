@@ -27,7 +27,7 @@ contains following information:
 }
 }
 \examples{
-data("usnews")
+data("usnews", package = "sentometrics")
 usnews[3192, "text"]
 usnews[1:5, c("id", "date", "text")]
 

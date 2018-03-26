@@ -25,4 +25,9 @@ are in lowercase. The built-in valence word lists are the following:
   \item valence_nl
 }
 }
+\examples{
+data("valence", package = "sentometrics")
+valence["valence_eng"]
+
+}
 \keyword{datasets}
