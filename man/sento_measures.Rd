@@ -29,8 +29,8 @@ If \code{ctr$do.ignoreZeros = TRUE}, all zeros are replaced by \code{NA}.}
 \item{howDocs}{a single \code{character} vector to remind how sentiment across documents was aggregated.}
 \item{fill}{a single \code{character} vector that specifies if and how missing dates have been added before
 aggregation across time was carried out.}
-\item{do.ignoreZeros}{a single \code{character} vector to remind if documents with zero sentiment have been ignored in the
-within-document aggregation.}
+\item{do.ignoreZeros}{a single \code{character} vector to remind if documents with a zero feature-sentiment score
+have been ignored in the within-document aggregation.}
 \item{attribWeights}{a \code{list} of document and time weights used in the \code{\link{retrieve_attributions}} function.
 Serves further no direct purpose.}
 }
@@ -41,21 +41,20 @@ panel of textual sentiment measures as a \code{sentomeasures} object.
 }
 \examples{
 data("usnews", package = "sentometrics")
-data("lexicons", package = "sentometrics")
-data("valence", package = "sentometrics")
+data("list_lexicons", package = "sentometrics")
+data("list_valence_shifters", package = "sentometrics")
 
 # construct a sentomeasures object to start with
 corpus <- sento_corpus(corpusdf = usnews)
 corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
+l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
 ctr <- ctr_agg(howWithin = "tf-idf",
                howDocs = "proportional",
                howTime = c("equal_weight", "linear", "almon"),
                by = "month",
                lag = 3,
                ordersAlm = 1:3,
-               do.inverseAlm = TRUE,
-               do.normalizeAlm = TRUE)
+               do.inverseAlm = TRUE)
 sentomeasures <- sento_measures(corpusSample, l, ctr)
 summary(sentomeasures)
 

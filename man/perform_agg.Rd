@@ -4,31 +4,30 @@
 \alias{perform_agg}
 \title{Aggregate textual sentiment across documents and time}
 \usage{
-perform_agg(toAgg, ctr)
+perform_agg(sentiment, ctr)
 }
 \arguments{
-\item{toAgg}{output from a \code{\link{compute_sentiment}} call.}
+\item{sentiment}{output from a \code{\link{compute_sentiment}} call, computed from a \code{sentocorpus} object.}
 
-\item{ctr}{output from a \code{\link{ctr_agg}} call. The \code{howWithin} argument plays no further role from
-this point on.}
+\item{ctr}{output from a \code{\link{ctr_agg}} call. The \code{howWithin} and \code{nCore} arguments are ignored.}
 }
 \value{
 A \code{sentomeasures} object.
 }
 \description{
-Condense document-level textual sentiment scores into a panel of textual sentiment
+Condenses document-level textual sentiment scores into a panel of textual sentiment
 measures by aggregating across documents and time. This function is called within \code{\link{sento_measures}},
 applied on the output of \code{\link{compute_sentiment}}.
 }
 \examples{
 data("usnews", package = "sentometrics")
-data("lexicons", package = "sentometrics")
-data("valence", package = "sentometrics")
+data("list_lexicons", package = "sentometrics")
+data("list_valence_shifters", package = "sentometrics")
 
 # computation of sentiment and aggregation into sentiment measures
 corpus <- sento_corpus(corpusdf = usnews)
 corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
+l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
 sent <- compute_sentiment(corpusSample, l, how = "counts")
 ctr <- ctr_agg(howTime = c("linear"), by = "year", lag = 3)
 sentomeasures <- perform_agg(sent, ctr)

@@ -7,8 +7,7 @@
 ctr_agg(howWithin = "proportional", howDocs = "equal_weight",
   howTime = "equal_weight", do.ignoreZeros = TRUE, by = "day", lag = 1L,
   fill = "zero", alphasExp = seq(0.1, 0.5, by = 0.1), ordersAlm = 1:3,
-  do.inverseAlm = TRUE, do.normalizeAlm = TRUE, weights = NULL,
-  dfm = NULL)
+  do.inverseAlm = TRUE, weights = NULL, nCore = 1, dfm = NULL, ...)
 }
 \arguments{
 \item{howWithin}{a single \code{character} vector defining how aggregation within documents will be performed. Should
@@ -24,7 +23,7 @@ is possible. For currently available options on how aggregation can occur, see \
 
 \item{do.ignoreZeros}{a \code{logical} indicating whether zero sentiment values have to be ignored in the determination of
 the document weights while aggregating across documents. By default \code{do.ignoreZeros = TRUE}, such that documents with
-an exact score of zero are considered irrelevant.}
+a raw sentiment score of zero or for which a given feature indicator is equal to zero are considered irrelevant.}
 
 \item{by}{a single \code{character} vector, either \code{"day", "week", "month"} or \code{"year"}, to indicate at what
 level the dates should be aggregated. Dates are displayed as the first day of the period, if applicable (e.g.,
@@ -35,7 +34,7 @@ equal to \code{1L}, meaning no aggregation across time.}
 
 \item{fill}{a single \code{character} vector, one of \code{c("zero", "latest", "none")}, to control how missing
 sentiment values across the continuum of dates considered are added. This impacts the aggregation across time,
-applying the \code{\link{fill_measures}} function before aggregating, except if \code{fill = "none"}. By default equal to
+applying the \code{\link{measures_fill}} function before aggregating, except if \code{fill = "none"}. By default equal to
 \code{"zero"}, which sets the scores (and thus also the weights) of the added dates to zero in the time aggregation.}
 
 \item{alphasExp}{a \code{numeric} vector of all exponential smoothing factors to calculate weights for, used if
@@ -47,15 +46,18 @@ applying the \code{\link{fill_measures}} function before aggregating, except if 
 \item{do.inverseAlm}{a \code{logical} indicating if for every Almon polynomial its inverse has to be added, used
 if \code{"almon" \%in\% howTime}.}
 
-\item{do.normalizeAlm}{a \code{logical} indicating if every Almon polynomial weights column should sum to one, used if
-\code{"almon" \%in\% howTime}.}
-
 \item{weights}{an optional own weighting scheme, always used if provided as a \code{data.frame} with the number of rows
 equal to the desired \code{lag}. The automatic Almon polynomials are created sequentially; if the user wants only specific
 of such time weighting series it can use \code{\link{almons}}, select the columns it requires, combine it into a
 \code{data.frame} and supply it under this argument (see examples).}
 
-\item{dfm}{optional; see \code{\link{compute_sentiment}}.}
+\item{nCore}{a single \code{numeric} at least equal to 1 to indicate the number of cores to use for a parallel sentiment
+computation. We use the \code{\%dopar\%} construct from the \pkg{foreach} package. By default, \code{nCore = 1}, which
+implies no parallelization.}
+
+\item{dfm}{(optional) see \code{\link{compute_sentiment}}.}
+
+\item{...}{not used.}
 }
 \value{
 A \code{list} encapsulating the control parameters.
@@ -81,7 +83,6 @@ ctr2 <- ctr_agg(howWithin = "proportionalPol",
                 lag = 20,
                 ordersAlm = 1:3,
                 do.inverseAlm = TRUE,
-                do.normalizeAlm = TRUE,
                 alphasExp = c(0.20, 0.50, 0.70, 0.95),
                 weights = data.frame(myWeights = runif(20)))
 
@@ -92,7 +93,7 @@ ctr3 <- ctr_agg(howTime = c("linear", "own"), by = "year", lag = 70,
 
 }
 \seealso{
-\code{\link{fill_measures}}, \code{\link{almons}}, \code{\link{compute_sentiment}}
+\code{\link{measures_fill}}, \code{\link{almons}}, \code{\link{compute_sentiment}}
 }
 \author{
 Samuel Borms, Keven Bluteau

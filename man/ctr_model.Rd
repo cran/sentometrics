@@ -6,13 +6,13 @@
 \usage{
 ctr_model(model = c("gaussian", "binomial", "multinomial"), type = c("BIC",
   "AIC", "Cp", "cv"), do.intercept = TRUE, do.iter = FALSE, h = 0,
-  alphas = seq(0, 1, by = 0.2), nSample = NULL, trainWindow = NULL,
-  testWindow = NULL, oos = 0, start = 1, do.progress = TRUE,
-  do.parallel = FALSE)
+  oos = 0, do.difference = FALSE, alphas = seq(0, 1, by = 0.2),
+  nSample = NULL, trainWindow = NULL, testWindow = NULL, start = 1,
+  do.progress = TRUE, nCore = 1)
 }
 \arguments{
-\item{model}{a \code{character} vector with one of the following: "\code{gaussian}" (linear regression), "\code{binomial}"
-(binomial logistic regression), or "\code{multinomial}" (multinomial logistic regression).}
+\item{model}{a \code{character} vector with one of the following: \code{"gaussian"} (linear regression), \code{"binomial"}
+(binomial logistic regression), or \code{"multinomial"} (multinomial logistic regression).}
 
 \item{type}{a \code{character} vector indicating which model calibration approach to use. Supports "\code{BIC}",
 "\code{AIC}" and "\code{Cp}" (Mallows's Cp) as sparse regression adapted information criteria (cf., ``On the `degrees of
@@ -30,33 +30,44 @@ no change to the input data (nowcasting assuming data is aligned properly), \cod
 \code{h} periods (i.e. rows) further in time (forecasting), \code{h < 0} shifts the independent variables by \code{h}
 periods.}
 
+\item{oos}{a non-negative \code{integer} to indicate the number of periods to skip from the end of the training sample
+up to the out-of-sample prediction(s). This is either used in the cross-validation based calibration approach
+(if \code{type = } "\code{cv}"), or for the iterative out-of-sample prediction analysis (if \code{do.iter = TRUE}). For
+instance, given \eqn{t}, the (first) out-of-simple prediction is computed at \eqn{t + oos + 1}.}
+
+\item{do.difference}{a \code{logical}, \code{TRUE} will difference the target variable \code{y} supplied in the
+\code{\link{sento_model}} function with as lag the absolute value of the \code{h} argument, in which case
+\code{abs(h) > 0} is required. For example, if \code{h = 2}, and assuming the \code{y} variable is properly aligned
+date-wise with the explanatory variables denoted by \eqn{X} (the sentiment measures and other in \code{x}), the regression
+will be of \eqn{y_(t + 2) - y_t} on \eqn{X_t}. If \code{h = -2}, the regression fitted is \eqn{y_(t + 2) - y_t} on
+\eqn{X_{t+2}}. The argument is always kept at \code{FALSE} if the \code{model} argument is one of
+\code{c("binomial", "multinomial")}.}
+
 \item{alphas}{a \code{numeric} vector of the different alphas to test for during calibration, between 0 and 1. A value of
 0 pertains to Ridge regression, a value of 1 to LASSO regression; values in between are pure elastic net. The lambda
 values tested for are chosen by the \code{\link[glmnet]{glmnet}} function or set to \code{10^seq(2, -2, length.out = 100)}
 in case of cross-validation.}
 
 \item{nSample}{a positive \code{integer} as the size of the sample for model estimation at every iteration (ignored if
-\code{iter = FALSE}).}
+\code{do.iter = FALSE}).}
 
-\item{trainWindow}{a positive \code{integer} as the size of the training sample in cross-validation (ignored if
+\item{trainWindow}{a positive \code{integer} as the size of the training sample for cross-validation (ignored if
 \code{type != } "\code{cv}").}
 
-\item{testWindow}{a positive \code{integer} as the size of the test sample in cross-validation (ignored if \code{type != }
+\item{testWindow}{a positive \code{integer} as the size of the test sample for cross-validation (ignored if \code{type != }
 "\code{cv}").}
 
-\item{oos}{a non-negative \code{integer} to indicate the number of periods to skip from the end of the cross-validation
-training sample (out-of-sample) up to the test sample (ignored if \code{type != } "\code{cv}").}
-
 \item{start}{a positive \code{integer} to indicate at which point the iteration has to start (ignored if
-\code{iter = FALSE}). For example, given 100 possible iterations, \code{start = 70} leads to model estimations
+\code{do.iter = FALSE}). For example, given 100 possible iterations, \code{start = 70} leads to model estimations
 only for the last 31 samples.}
 
 \item{do.progress}{a \code{logical}, if \code{TRUE} progress statements are displayed during model calibration.}
 
-\item{do.parallel}{a \code{logical}, if \code{TRUE} the \code{\%dopar\%} construct from the \pkg{foreach} package is
-applied for iterative model estimation. A proper parallel backend needs to be set up to make it work. No progress statements
-are displayed whatsoever when \code{TRUE}. For cross-validation models, parallelization can also be carried out for
-single-run models, whenever a parallel backend is set up. See the examples in \code{\link{sento_model}}.}
+\item{nCore}{a single \code{numeric} at least equal to 1 to indicate the number of cores to use for a parallel iterative
+model estimation \code{do.iter = TRUE}. We use the \code{\%dopar\%} construct from the \pkg{foreach} package. By default,
+\code{nCore = 1}, which implies no parallelization. No progress statements are displayed whatsoever when \code{nCore > 1}.
+For cross-validation models, parallelization can also be carried out for a single-shot model (\code{do.iter = FALSE}),
+whenever a parallel backend is set up. See the examples in \code{\link{sento_model}}.}
 }
 \value{
 A \code{list} encapsulating the control parameters.
@@ -70,15 +81,16 @@ estimation and calibration procedure.
 # information criterion based model control functions
 ctrIC1 <- ctr_model(model = "gaussian", type = "BIC", do.iter = FALSE, h = 0,
                     alphas = seq(0, 1, by = 0.10))
-ctrIC2 <- ctr_model(model = "gaussian", type = "AIC", do.iter = TRUE, h = 0, nSample = 100)
+ctrIC2 <- ctr_model(model = "gaussian", type = "AIC", do.iter = TRUE, h = 4, nSample = 100,
+                    do.difference = TRUE, oos = 3)
 
 # cross-validation based model control functions
 ctrCV1 <- ctr_model(model = "gaussian", type = "cv", do.iter = FALSE, h = 0,
                     trainWindow = 250, testWindow = 4, oos = 0, do.progress = TRUE)
 ctrCV2 <- ctr_model(model = "binomial", type = "cv", h = 0, trainWindow = 250,
                     testWindow = 4, oos = 0, do.progress = TRUE)
-ctrCV3 <- ctr_model(model = "multinomial", type = "cv", h = 0, trainWindow = 250,
-                    testWindow = 4, oos = 0, do.progress = TRUE)
+ctrCV3 <- ctr_model(model = "multinomial", type = "cv", h = 2, trainWindow = 250,
+                    testWindow = 4, oos = 2, do.progress = TRUE)
 ctrCV4 <- ctr_model(model = "gaussian", type = "cv", do.iter = TRUE, h = 0, trainWindow = 45,
                     testWindow = 4, oos = 0, nSample = 70, do.progress = TRUE)
 

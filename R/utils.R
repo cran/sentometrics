@@ -1,6 +1,6 @@
 
 ############################################################
-################# Utility/Helper functions #################
+################# UTILITY/HELPER FUNCTIONS #################
 ############################################################
 
 negate <- function(lexicon, s = -1) {
@@ -28,16 +28,34 @@ expand_lexicons <- function(lexicons, types = c(1, 2, 3), scores = c(-1, 2, 0.5)
   return(lexiconsExp) # expanded lexicons (original + copied and negated/amplified/deamplified words and scores)
 }
 
-# replaces valence words in texts and combines into bigrams
-include_valence <- function(texts, val, valIdentifier = c("NOT_", "VERY_", "HARDLY_")) {
-  negators <- paste0("\\b", paste0(val[val$t == 1, ]$x, collapse = " \\b|\\b"), " \\b")
-  amplif <- paste0("\\b", paste0(val[val$t == 2, ]$x, collapse = " \\b|\\b"), " \\b")
-  deamplif <- paste0("\\b", paste0(val[val$t == 3, ]$x, collapse = " \\b|\\b"), " \\b")
-  all <- c(negators, amplif, deamplif)
-  for (i in seq_along(all)) {
-    if (all[i] != "\\b \\b") texts <- stringi::stri_replace_all(texts, valIdentifier[i], regex = all[i])
+#' @importFrom foreach %dopar%
+include_valence <- function(corpus, val, valId, nCore = 1) {
+  modify_texts <- function(texts, val, valId = c("NOT_", "VERY_", "HARDLY_")) {
+    val[, identifier := sapply(t, function(j) if (j == 1) valId[1] else if (j == 2) valId[2] else valId[3])]
+    all <- val[, c("x", "identifier")]
+    texts <- lapply(1:nrow(all), function(i) {
+      texts <<- stringi::stri_replace_all(texts, all[i, identifier], regex = paste0("\\b", all[i, x], " \\b"))
+    })[[nrow(all)]]
+    return(texts)
   }
-  return(texts)
+  cat("Modify corpus to account for valence words... ") # replaces valence words in texts and combines into bigrams
+  texts <- quanteda::texts(corpus)
+  if (nCore > 1) {
+    cl <- parallel::makeCluster(min(parallel::detectCores() - 1, nCore))
+    doParallel::registerDoParallel(cl)
+    N <- length(texts)
+    blocks <- seq(0, N + 1, by = floor(N/nCore))
+    blocks[length(blocks)] <- N
+    textsNew <- foreach::foreach(i = 1:(length(blocks) - 1), .combine = c, .export = c(":=")) %dopar% {
+      modify_texts(texts = texts[(blocks[i] + 1):blocks[i + 1]], val = val)
+    }
+    quanteda::texts(corpus) <- textsNew
+    parallel::stopCluster(cl)
+  } else {
+    quanteda::texts(corpus) <- modify_texts(texts, val)
+  }
+  cat("Done.", "\n")
+  return(corpus)
 }
 
 #' Compute Almon polynomials
@@ -46,8 +64,8 @@ include_valence <- function(texts, val, valIdentifier = c("NOT_", "VERY_", "HARD
 #' for input in \code{\link{ctr_agg}}.
 #'
 #' @details The Almon polynomial formula implemented is:
-#' \eqn{(1 - (i/n)^{b})(i/n)^{B - b}}{(1 - (i/n)^b) * (i/n)^(B - b)}, where \eqn{i} is the lag index from 1 to \eqn{n}.
-#' The inverse is computed by changing \eqn{i/n} to \eqn{1 - i/n}.
+#' \eqn{(1 - (i/n)^{b})(i/n)^{B - b}}{(1 - (i/n)^b) * (i/n)^(B - b)}, where \eqn{i} is the lag index ordered from
+#' \eqn{n} to 1. The inverse is computed by changing \eqn{i/n} to \eqn{1 - i/n}.
 #'
 #' @param n a single \code{numeric} to indicate the length of the curve (the number of lags, cf., \emph{n}).
 #' @param orders a \code{numeric} vector as the sequence of the Almon orders (cf., \emph{b}). The maximum value
@@ -62,7 +80,7 @@ include_valence <- function(texts, val, valIdentifier = c("NOT_", "VERY_", "HARD
 #'
 #' @export
 almons <- function(n, orders = 1:3, do.inverse = TRUE, do.normalize = TRUE) {
-  vals <- 1:n
+  vals <- n:1 # first row is most lagged value
   inv <- ifelse(do.inverse, 2, 1)
   almons <- data.frame(matrix(nrow = n, ncol = length(orders) * inv))
   colnames(almons) <- paste0("almon", rep(orders, rep(inv, length(orders))), c("", "_inv")[1:inv])
@@ -128,7 +146,7 @@ setup_time_weights <- function(lag, how, ...) {
     weights <- cbind(weights, exponentials(lag, dots$alphasExp))
   }
   if ("almon" %in% how) {
-    weights <- cbind(weights, almons(lag, dots$ordersAlm, dots$do.inverseAlm, dots$do.normalizeAlm))
+    weights <- cbind(weights, almons(lag, dots$ordersAlm, dots$do.inverseAlm, TRUE)) # always normalize
   }
   if ("own" %in% how) {
     weights <- cbind(weights, dots$weights)
@@ -175,7 +193,7 @@ create_cv_slices <- function (y, trainWindow, testWindow = 1, skip = 0, do.rever
   return(list(train = train, test = test))
 }
 
-align_variables <- function(y, sentomeasures, x, h, i = 1, nSample = NULL) {
+align_variables <- function(y, sentomeasures, x, h, difference, i = 1, nSample = NULL) {
 
   if (is.factor(y)) {
     levs <- levels(y)
@@ -200,13 +218,19 @@ align_variables <- function(y, sentomeasures, x, h, i = 1, nSample = NULL) {
   x[is.na(x)] <- 0 # check
 
   if (h > 0) {
-    y <- y[(h + 1):nrow(x), , drop = FALSE]
+    if (difference)
+      y <- diff(y, lag = h)
+    else
+      y <- y[(h + 1):nrow(x), , drop = FALSE]
     x <- x[1:nrow(y), , drop = FALSE]
     datesX <- datesX[1:nrow(y)]
   } else if (h < 0) {
     x <- x[(abs(h) + 1):nrow(y), , drop = FALSE]
     datesX <- datesX[(abs(h) + 1):nrow(y)]
-    y <- y[1:nrow(x), , drop = FALSE]
+    if (difference)
+      y <- diff(y, lag = abs(h))
+    else
+      y <- y[1:nrow(x), , drop = FALSE]
   }
   if (!is.null(nSample)) {
     x <- x[i:(nSample + i - 1), , drop = FALSE]
@@ -334,11 +358,11 @@ nonzero_coeffs <- function(reg) {
   return(nz)
 }
 
-pdf_manual <- function(wd) {
-  setwd(wd)
-  shell('R CMD Rd2pdf --encoding=UTF-8 sentometrics')
-  setwd(paste0(wd, "/sentometrics"))
-}
+# pdf_manual <- function(wd) {
+#   setwd(wd)
+#   shell('R CMD Rd2pdf --encoding=UTF-8 sentometrics')
+#   setwd(paste0(wd, "/sentometrics"))
+# }
 
 # this function is directly taken from the sentimentr package
 # (the as_key() function) but copied to bring R version

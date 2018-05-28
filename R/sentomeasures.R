@@ -19,7 +19,7 @@
 #' is possible. For currently available options on how aggregation can occur, see \code{\link{get_hows}()$time}.
 #' @param do.ignoreZeros a \code{logical} indicating whether zero sentiment values have to be ignored in the determination of
 #' the document weights while aggregating across documents. By default \code{do.ignoreZeros = TRUE}, such that documents with
-#' an exact score of zero are considered irrelevant.
+#' a raw sentiment score of zero or for which a given feature indicator is equal to zero are considered irrelevant.
 #' @param by a single \code{character} vector, either \code{"day", "week", "month"} or \code{"year"}, to indicate at what
 #' level the dates should be aggregated. Dates are displayed as the first day of the period, if applicable (e.g.,
 #' \code{"2017-03-01"} for March 2017).
@@ -27,7 +27,7 @@
 #' equal to \code{1L}, meaning no aggregation across time.
 #' @param fill a single \code{character} vector, one of \code{c("zero", "latest", "none")}, to control how missing
 #' sentiment values across the continuum of dates considered are added. This impacts the aggregation across time,
-#' applying the \code{\link{fill_measures}} function before aggregating, except if \code{fill = "none"}. By default equal to
+#' applying the \code{\link{measures_fill}} function before aggregating, except if \code{fill = "none"}. By default equal to
 #' \code{"zero"}, which sets the scores (and thus also the weights) of the added dates to zero in the time aggregation.
 #' @param alphasExp a \code{numeric} vector of all exponential smoothing factors to calculate weights for, used if
 #'  \code{"exponential" \%in\% howTime}. Values should be between 0 and 1 (both excluded).
@@ -35,17 +35,19 @@
 #' \code{"almon" \%in\% howTime}.
 #' @param do.inverseAlm a \code{logical} indicating if for every Almon polynomial its inverse has to be added, used
 #' if \code{"almon" \%in\% howTime}.
-#' @param do.normalizeAlm a \code{logical} indicating if every Almon polynomial weights column should sum to one, used if
-#' \code{"almon" \%in\% howTime}.
 #' @param weights an optional own weighting scheme, always used if provided as a \code{data.frame} with the number of rows
 #' equal to the desired \code{lag}. The automatic Almon polynomials are created sequentially; if the user wants only specific
 #' of such time weighting series it can use \code{\link{almons}}, select the columns it requires, combine it into a
 #' \code{data.frame} and supply it under this argument (see examples).
-#' @param dfm optional; see \code{\link{compute_sentiment}}.
+#' @param nCore a single \code{numeric} at least equal to 1 to indicate the number of cores to use for a parallel sentiment
+#' computation. We use the \code{\%dopar\%} construct from the \pkg{foreach} package. By default, \code{nCore = 1}, which
+#' implies no parallelization.
+#' @param dfm (optional) see \code{\link{compute_sentiment}}.
+#' @param ... not used.
 #'
 #' @return A \code{list} encapsulating the control parameters.
 #'
-#' @seealso \code{\link{fill_measures}}, \code{\link{almons}}, \code{\link{compute_sentiment}}
+#' @seealso \code{\link{measures_fill}}, \code{\link{almons}}, \code{\link{compute_sentiment}}
 #'
 #' @examples
 #' # simple control function
@@ -60,7 +62,6 @@
 #'                 lag = 20,
 #'                 ordersAlm = 1:3,
 #'                 do.inverseAlm = TRUE,
-#'                 do.normalizeAlm = TRUE,
 #'                 alphasExp = c(0.20, 0.50, 0.70, 0.95),
 #'                 weights = data.frame(myWeights = runif(20)))
 #'
@@ -72,10 +73,11 @@
 #' @export
 ctr_agg <- function(howWithin = "proportional", howDocs = "equal_weight", howTime = "equal_weight",
                     do.ignoreZeros = TRUE, by = "day", lag = 1L, fill = "zero", alphasExp = seq(0.1, 0.5, by = 0.1),
-                    ordersAlm = 1:3, do.inverseAlm = TRUE, do.normalizeAlm = TRUE, weights = NULL, dfm = NULL) {
+                    ordersAlm = 1:3, do.inverseAlm = TRUE, weights = NULL, nCore = 1, dfm = NULL, ...) {
 
   if (length(howWithin) > 1) howWithin <- howWithin[1]
   if (length(howDocs) > 1) howDocs <- howDocs[1]
+  if (length(nCore) > 1) nCore <- nCore[1]
 
   # check if provided aggregation specifications are supported
   hows <- get_hows() # get all supported options for each aggregation level
@@ -122,14 +124,21 @@ ctr_agg <- function(howWithin = "proportional", howDocs = "equal_weight", howTim
     warning(paste0(fill, " is no current 'fill' option."))
     warned <- warned + 1
   }
+  if (!is.numeric(nCore)) {
+    warning("The 'nCore' argument should be a numeric vector of length 1.")
+    warned <- warned + 1
+  }
+  if (is.numeric(nCore) && nCore < 1) {
+    warning("The 'nCore' argument should be least 1.")
+    warned <- warned + 1
+  }
   if (!is.null(dfm) & !quanteda::is.dfm(dfm)) {
     warning("The 'dfm' argument should pass quanteda::is.dfm(dfm) when it is not equal to NULL.")
     warned <- warned + 1
   }
-  if (warned > 0) stop("Wrong inputs. See warning messages for specifics.")
+  if (warned > 0) stop("Wrong inputs. See warning message(s) for specifics.")
 
-  other <- list(alphasExp = alphasExp, ordersAlm = ordersAlm, do.inverseAlm = do.inverseAlm,
-                do.normalizeAlm = do.normalizeAlm, weights = weights)
+  other <- list(alphasExp = alphasExp, ordersAlm = ordersAlm, do.inverseAlm = do.inverseAlm, weights = weights)
 
   ctr <- list(howWithin = howWithin,
               howDocs = howDocs,
@@ -138,6 +147,7 @@ ctr_agg <- function(howWithin = "proportional", howDocs = "equal_weight", howTim
               by = by,
               lag = lag,
               fill = fill,
+              nCore = nCore,
               dfm = dfm,
               other = other)
 
@@ -171,8 +181,8 @@ ctr_agg <- function(howWithin = "proportional", howDocs = "equal_weight", howTim
 #' \item{howDocs}{a single \code{character} vector to remind how sentiment across documents was aggregated.}
 #' \item{fill}{a single \code{character} vector that specifies if and how missing dates have been added before
 #' aggregation across time was carried out.}
-#' \item{do.ignoreZeros}{a single \code{character} vector to remind if documents with zero sentiment have been ignored in the
-#' within-document aggregation.}
+#' \item{do.ignoreZeros}{a single \code{character} vector to remind if documents with a zero feature-sentiment score
+#' have been ignored in the within-document aggregation.}
 #' \item{attribWeights}{a \code{list} of document and time weights used in the \code{\link{retrieve_attributions}} function.
 #' Serves further no direct purpose.}
 #'
@@ -180,21 +190,20 @@ ctr_agg <- function(howWithin = "proportional", howDocs = "equal_weight", howTim
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
-#' data("lexicons", package = "sentometrics")
-#' data("valence", package = "sentometrics")
+#' data("list_lexicons", package = "sentometrics")
+#' data("list_valence_shifters", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
+#' l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
 #' ctr <- ctr_agg(howWithin = "tf-idf",
 #'                howDocs = "proportional",
 #'                howTime = c("equal_weight", "linear", "almon"),
 #'                by = "month",
 #'                lag = 3,
 #'                ordersAlm = 1:3,
-#'                do.inverseAlm = TRUE,
-#'                do.normalizeAlm = TRUE)
+#'                do.inverseAlm = TRUE)
 #' sentomeasures <- sento_measures(corpusSample, l, ctr)
 #' summary(sentomeasures)
 #'
@@ -202,7 +211,7 @@ ctr_agg <- function(howWithin = "proportional", howDocs = "equal_weight", howTim
 #' @export
 sento_measures<- function(sentocorpus, lexicons, ctr) {
   check_class(sentocorpus, "sentocorpus")
-  toAgg <- compute_sentiment(sentocorpus, lexicons, how = ctr$howWithin, dfm = ctr$dfm)
+  toAgg <- compute_sentiment(sentocorpus, lexicons, how = ctr$howWithin, nCore = ctr$nCore, dfm = ctr$dfm)
   sentomeasures <- perform_agg(toAgg, ctr)
   return(sentomeasures)
 }
@@ -227,9 +236,9 @@ summary.sentomeasures <- function(object, ...) {
 #' @export
 print.sentomeasures <- function(x, ...) {
   sentomeasures <- x
-  n <- dim(sentomeasures$measures)[2] - 1
-  m <- dim(sentomeasures$measures)[1]
-  cat("A sentomeasures object that carries with it", n, "distinct textual sentiment time series of", m, "observations each.")
+  cat("A sentomeasures object that carries with it", nmeasures(sentomeasures),
+      "distinct textual sentiment time series of", nobs(sentomeasures),
+      "observations each.")
 }
 
 #' Set up lexicons (and valence word list) for use in sentiment analysis
@@ -237,21 +246,21 @@ print.sentomeasures <- function(x, ...) {
 #' @author Samuel Borms
 #'
 #' @description Structures provided lexicons and potentially integrates valence words. One can also provide (part of) the
-#' built-in lexicons from \code{data("lexicons")} or a valence word list from \code{data("valence")} as an argument.
-#' Part of this function mimicks the \code{\link[sentimentr]{as_key}} function from the \pkg{sentimentr} package to make
-#' the output coherent, convert all words to lowercase and check for duplicates.
+#' built-in lexicons from \code{data("list_lexicons")} or a valence word list from \code{data("list_valence_shifters")} as an
+#' argument. Part of this function mimicks the \code{\link[sentimentr]{as_key}} function from the \pkg{sentimentr} package to
+#' make the output coherent, convert all words to lowercase and check for duplicates.
 #'
 #' @param lexiconsIn a named \code{list} of (raw) lexicons, each element as a \code{data.frame} or a \code{data.table} with
 #' respectively a words column and a polarity score column. Alternatively, a subset of the already formatted built-in lexicons
-#' accessible via \code{lexicons} can be declared too, as part of the same list input. If only (some of) the package built-in
-#' lexicons want to be used (with \emph{no} valence shifters), one can simply supply \code{lexicons[c(...)]} as an argument to
-#' either \code{\link{sento_measures}} or \code{\link{compute_sentiment}}. However, it is strongly recommended to pass all
-#' lexicons (and a valence word list) to this function first, in any case.
+#' accessible via \code{list_lexicons} can be declared too, as part of the same list input. If only (some of) the package
+#' built-in lexicons want to be used (with \emph{no} valence shifters), one can simply supply \code{list_lexicons[c(...)]} as
+#' an argument to either \code{\link{sento_measures}} or \code{\link{compute_sentiment}}. However, it is strongly recommended
+#' to pass all lexicons (and a valence word list) to this function first, in any case.
 #' @param valenceIn a single valence word list as a \code{data.frame} or a \code{data.table} with respectively a words column,
 #' a type column (\code{1} for negators, \code{2} for amplifiers/intensifiers, and \code{3} for deamplifiers/downtoners) and a
-#' score column. Suggested scores are -1, 2, and 0.5 respectively, and should be the same within each type. This argument can
-#' also be one of the already formatted built-in valence word lists accessible via \code{valence}. If \code{NULL}, no valence
-#' word list is part of this function's output, nor will it applied in the sentiment analysis.
+#' score column. The scores should be the same within each type. This argument can be one of the already formatted
+#' built-in valence word lists accessible via \code{list_valence_shifters}. If \code{NULL}, no valence word list is part of this
+#' function's output, nor will it applied in the sentiment analysis.
 #' @param do.split a \code{logical} that if \code{TRUE} splits every lexicon into a separate positive polarity and negative
 #' polarity lexicon.
 #'
@@ -260,27 +269,27 @@ print.sentomeasures <- function(x, ...) {
 #' column contains the polarity score, and for the valence word list, \code{t} contains the word type. If a valence word list
 #' is provided, all lexicons are expanded by copying the respective lexicon, and changing the words and scores according to
 #' the valence word type: "NOT_" is added for negators, "VERY_" is added for amplifiers and "HARDLY_" is added for
-#' deamplifiers. Lexicon scores are multiplied by -1, 2 and 0.5 by default, respectively, or the first value of the scores
-#' column of the valence word list.
+#' deamplifiers. New lexicon scores are obtained by multiplication of the original lexicon scores with the first
+#' value of the scores column of the valence word list, per type (thus why valence scores should be the same across
+#' the types).
 #'
 #' @examples
-#' data("lexicons", package = "sentometrics")
-#' data("valence", package = "sentometrics")
+#' data("list_lexicons", package = "sentometrics")
+#' data("list_valence_shifters", package = "sentometrics")
 #'
-#' # sets up output list straight from built-in word lists including valence words
-#' l1 <- c(lexicons[c("LM_eng", "HENRY_eng")], valence[["eng"]])
+#' # lexicons straight from built-in word lists
+#' l1 <- list_lexicons[c("LM_en", "HENRY_en")]
 #'
 #' # including a self-made lexicon, with and without valence shifters
 #' lexIn <- c(list(myLexicon = data.table(w = c("nice", "boring"), s = c(2, -1))),
-#'            lexicons[c("GI_eng")])
-#' valIn <- valence[["valence_eng"]]
+#'            list_lexicons[c("GI_en")])
+#' valIn <- list_valence_shifters[["en"]]
 #' l2 <- setup_lexicons(lexIn)
 #' l3 <- setup_lexicons(lexIn, valIn)
 #' l4 <- setup_lexicons(lexIn, valIn, do.split = TRUE)
 #'
 #' \dontrun{
 #' # include lexicons from lexicon package
-#' library("lexicon")
 #' lexIn2 <- list(hul = lexicon::hash_sentiment_huliu, joc = lexicon::hash_sentiment_jockers)
 #' l5 <- setup_lexicons(c(lexIn, lexIn2), valIn)}
 #'
@@ -330,162 +339,16 @@ setup_lexicons <- function(lexiconsIn, valenceIn = NULL, do.split = FALSE) {
   return(lexicons)
 }
 
-.compute_sentiment <- function(sentocorpus, lexicons, how = get_hows()$words, dfm = NULL) {
-  check_class(sentocorpus, "sentocorpus")
-  if (length(how) > 1) how <- how[1]
-
-  quanteda::texts(sentocorpus) <- stringi::stri_trans_tolower(quanteda::texts(sentocorpus)) # to lowercase
-
-  if ("valence" %in% names(lexicons)) {
-    cat("Modify corpus to account for valence words... ")
-    quanteda::texts(sentocorpus) <- include_valence(quanteda::texts(sentocorpus), lexicons[["valence"]])
-    cat("Done.", "\n")
-  }
-  lexNames <- names(lexicons)[names(lexicons) != "valence"]
-  features <- names(quanteda::docvars(sentocorpus))[-1] # drop date column
-
-  cat("Compute sentiment... ")
-
-  tok <- quanteda::tokens(
-    sentocorpus,
-    what = "word",
-    ngrams = 1,
-    remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE, remove_separators = TRUE
-  )
-  wCounts <- quanteda::ntoken(tok)
-
-  if (is.null(dfm)) {
-      dfm <- quanteda::dfm(tok, tolower = FALSE, verbose = FALSE) # rows: corpus ids, columns: words, values: frequencies
-  } else if (!quanteda::is.dfm(dfm)) stop("The 'dfm' argument should pass quanteda::is.dfm(dfm).")
-
-  if (how == "counts" || how == "proportional" || how == "proportionalPol") {
-    fdm <- quanteda::t(dfm) # feature-document matrix
-  } else if (how == "tf-idf") {
-      weights <- quanteda::dfm_tfidf(dfm, scheme_tf = "prop")
-      fdmWeighted <- quanteda::t(weights)
-  } else stop("Please select an appropriate aggregation 'how'.")
-
-  s <- as.data.table(matrix(0, nrow = quanteda::ndoc(sentocorpus), ncol = length(lexNames)))
-  names(s) <- lexNames
-  allWords <- quanteda::featnames(dfm)
-  for (lexicon in lexNames) { # locate polarized words and set weights to their polarity or keep at zero
-    lexWords <- lexicons[[lexicon]]$x
-    lexScores <- lexicons[[lexicon]]$y
-    names(lexScores) <- lexWords
-    allScores <- rep(0, length(allWords))
-    polInd <- allWords %in% lexWords
-    allScores[polInd] <- lexScores[allWords[polInd]]
-    names(allScores) <- allWords
-    if (how == "counts") {
-      scores <- quanteda::rowSums(quanteda::t(fdm * allScores))
-    } else if (how == "proportional") {
-      scores <- quanteda::rowSums(quanteda::t(fdm * allScores)) / wCounts
-    } else if (how == "proportionalPol") {
-      wordScores <- quanteda::t(fdm * allScores) # every row is a document
-      scores <- quanteda::rowSums(wordScores) / quanteda::rowSums(wordScores != 0)
-    } else scores <- quanteda::rowSums(quanteda::t(fdmWeighted * allScores))
-    scores[is.na(scores)] <- 0 # set NA/NaN sentiment to 0 (e.g., if document contains no words)
-    s[, (lexicon) := scores]
-  }
-  # structure: date - feature1 - ... - word_count - lexicon1 (sentiment) - ...
-  s <- as.data.table(cbind(id = quanteda::docnames(sentocorpus), quanteda::docvars(sentocorpus), word_count = wCounts, s))
-  # compute feature-sentiment per document for all lexicons and order by date
-  sent <- get_features_sentiment(s, features, lexNames)
-  sent <- sent[order(date)]
-
-  cat("Done.", "\n")
-
-  sentOut <- list(corpus = sentocorpus, # not the same as input corpus if accounted for valence shifters
-                  sentiment = sent,
-                  features = features,
-                  lexicons = lexNames,
-                  howWithin = how)
-
-  return(sentOut)
-}
-
-#' Compute document-level sentiment across features and lexicons
-#'
-#' @author Samuel Borms
-#'
-#' @description Given a corpus of texts, computes sentiment per document using the bag-of-words approach
-#' based on the lexicons provided and a choice of aggregation across words per document. Relies partly on the
-#' \pkg{quanteda} package. The scores computed are net sentiment (sum of positive minus sum of negative scores).
-#'
-#' @details
-#' For a separate calculation of positive (resp. negative) sentiment, one has to provide distinct positive (resp. negative)
-#' lexicons. This can be done using the \code{do.split} option in the \code{\link{setup_lexicons}} function, which splits out
-#' the lexicons into a positive and a negative polarity counterpart. \code{NA}s are converted to 0, under the assumption that
-#' this is equivalent to no sentiment. By default, if the \code{dfm} argument is left unspecified, a document-feature
-#' matrix (dfm) is created based on a tokenisation that removes punctuation, numbers, symbols and separators, but does not
-#' remove stopwords. The number of words for each document is computed based on that some tokenisation. All tokens are
-#' converted to lowercase, in line with what the \code{\link{setup_lexicons}} function does for the lexicons and valence
-#' words.
-#'
-#' @param sentocorpus a \code{sentocorpus} object created with \code{\link{sento_corpus}}.
-#' @param lexicons output from a \code{\link{setup_lexicons}} call.
-#' @param how a single \code{character} vector defining how aggregation within documents should be performed. For currently
-#' available options on how aggregation can occur, see \code{\link{get_hows}()$words}.
-#' @param dfm optional; an output from a \pkg{quanteda} \code{\link[quanteda]{dfm}} call, such that users can specify their
-#' own tokenisation scheme (via \code{\link[quanteda]{tokens}}) as well as other parameters related to the construction of
-#' a document-feature matrix (dfm). Make sure the document-feature matrix is constructed from the texts in the
-#' \code{sentocorpus} object, otherwise, results will be spurious or errors may occur. Note that valence shifters will
-#' not be integrated into the features of a user-provided dfm.
-#'
-#' @return A \code{list} containing:
-#' \item{corpus}{the supplied \code{sentocorpus} object; the texts are altered if valence shifters are part of the lexicons.}
-#' \item{sentiment}{the sentiment scores \code{data.table} with a \code{"date"} and a \code{"word_count"} column and all
-#' lexicon--feature sentiment scores columns.}
-#' \item{features}{a \code{character} vector of the different features.}
-#' \item{lexicons}{a \code{character} vector of the different lexicons used.}
-#' \item{howWithin}{a \code{character} vector to remind how sentiment within documents was aggregated.}
-#'
-#' @seealso \code{\link[quanteda]{dfm}}, \code{\link[quanteda]{tokens}}
-#'
-#' @examples
-#' data("usnews", package = "sentometrics")
-#' data("lexicons", package = "sentometrics")
-#' data("valence", package = "sentometrics")
-#'
-#' # sentiment computation based on raw frequency counts
-#' corpus <- sento_corpus(corpusdf = usnews)
-#' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
-#' sent <- compute_sentiment(corpusSample, l, how = "counts")
-#'
-#' \dontrun{
-#' # same sentiment computation based on a user-supplied dfm with default settings
-#' tok <- quanteda::tokens_tolower(quanteda::tokens(corpus))
-#' dfm <- quanteda::dfm(tok, verbose = FALSE)
-#' sent <- compute_sentiment(corpus, l, how = "counts", dfm = dfm)}
-#'
-#' @importFrom compiler cmpfun
-#' @export
-compute_sentiment <- compiler::cmpfun(.compute_sentiment)
-
-.get_features_sentiment <- function(sent, features, lexNames) {
-  for (lexicon in lexNames) { # multiply lexicons with features to obtain feature-sentiment scores per lexicon
-    nms <- paste0(lexicon, "--", features)
-    sent[, nms] <- sent[[lexicon]] * sent[, features, with = FALSE]
-  }
-  sent[, eval(c(lexNames, features)) := NULL][] # remove since replaced by lexicon--feature columns
-  return(sent)
-}
-
-#' @importFrom compiler cmpfun
-get_features_sentiment <- compiler::cmpfun(.get_features_sentiment)
-
 #' Aggregate textual sentiment across documents and time
 #'
 #' @author Samuel Borms, Keven Bluteau
 #'
-#' @description Condense document-level textual sentiment scores into a panel of textual sentiment
+#' @description Condenses document-level textual sentiment scores into a panel of textual sentiment
 #' measures by aggregating across documents and time. This function is called within \code{\link{sento_measures}},
 #' applied on the output of \code{\link{compute_sentiment}}.
 #'
-#' @param toAgg output from a \code{\link{compute_sentiment}} call.
-#' @param ctr output from a \code{\link{ctr_agg}} call. The \code{howWithin} argument plays no further role from
-#' this point on.
+#' @param sentiment output from a \code{\link{compute_sentiment}} call, computed from a \code{sentocorpus} object.
+#' @param ctr output from a \code{\link{ctr_agg}} call. The \code{howWithin} and \code{nCore} arguments are ignored.
 #'
 #' @return A \code{sentomeasures} object.
 #'
@@ -493,19 +356,22 @@ get_features_sentiment <- compiler::cmpfun(.get_features_sentiment)
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
-#' data("lexicons", package = "sentometrics")
-#' data("valence", package = "sentometrics")
+#' data("list_lexicons", package = "sentometrics")
+#' data("list_valence_shifters", package = "sentometrics")
 #'
 #' # computation of sentiment and aggregation into sentiment measures
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
+#' l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
 #' sent <- compute_sentiment(corpusSample, l, how = "counts")
 #' ctr <- ctr_agg(howTime = c("linear"), by = "year", lag = 3)
 #' sentomeasures <- perform_agg(sent, ctr)
 #'
 #' @export
-perform_agg <- function(toAgg, ctr) {
+perform_agg <- function(sentiment, ctr) {
+  toAgg <- sentiment
+  if (!inherits(toAgg[["corpus"]], "sentocorpus"))
+    stop("The 'sentiment' argument should be computed from a sentocorpus object, i.e., include a date dimension.")
   howDocs <- ctr$howDocs
   howTime <- ctr$howTime
   do.ignoreZeros <- ctr$do.ignoreZeros
@@ -571,8 +437,8 @@ agg_documents <- function(toAgg, by, how = get_hows()$docs, do.ignoreZeros = TRU
                         lexicons = lexNames,
                         time = NA,
                         by = by,
-                        stats = NA, # zeros replaced by NAs if do.ignoreZeros = TRUE
-                        sentiment = sent,
+                        stats = NA,
+                        sentiment = sent, # zeros replaced by NAs if do.ignoreZeros = TRUE
                         howWithin = toAgg$howWithin,
                         howDocs = how,
                         fill = NA,
@@ -600,7 +466,7 @@ agg_time <- function(sentomeasures, lag, fill, how = get_hows()$time, ...) {
   sentomeasures$attribWeights[["B"]] <- copy(weights)
 
   # apply rolling time window, if not too large, for every weights column and combine all new measures column-wise
-  if (!(fill %in% "none")) sentomeasures <- fill_measures(sentomeasures, fill = fill)
+  if (!(fill %in% "none")) sentomeasures <- measures_fill(sentomeasures, fill = fill)
   measures <- sentomeasures$measures
   toRoll <- measures[, -1]
   n <- nrow(weights)
@@ -634,7 +500,7 @@ agg_time <- function(sentomeasures, lag, fill, how = get_hows()$time, ...) {
 #' @author Samuel Borms
 #'
 #' @description Sets up control object for the optional merging (additional aggregation) of sentiment measures as
-#' done by \code{\link{merge_measures}}.
+#' done by \code{\link{measures_merge}}.
 #'
 #' @param sentomeasures a \code{sentomeasures} object created using \code{\link{sento_measures}}. This is necessary to check
 #' whether the other input arguments make sense.
@@ -652,24 +518,24 @@ agg_time <- function(sentomeasures, lag, fill, how = get_hows()$time, ...) {
 #'
 #' @return A \code{list} encapsulating the control parameters.
 #'
-#' @seealso \code{\link{merge_measures}}
+#' @seealso \code{\link{measures_merge}}
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
-#' data("lexicons", package = "sentometrics")
-#' data("valence", package = "sentometrics")
+#' data("list_lexicons", package = "sentometrics")
+#' data("list_valence_shifters", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
+#' l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
 #' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "year", lag = 3)
 #' sentomeasures <- sento_measures(corpusSample, l, ctr)
 #'
 #' # set up a correct control function
 #' ctrMerge <- ctr_merge(sentomeasures,
 #'                       time = list(W = c("equal_weight", "linear")),
-#'                       lexicons = list(LEX = c("LM_eng", "HENRY_eng")),
+#'                       lexicons = list(LEX = c("LM_en", "HENRY_en")),
 #'                       features = list(journals = c("wsj", "wapo")),
 #'                       do.keep = TRUE)
 #'
@@ -677,7 +543,7 @@ agg_time <- function(sentomeasures, lag, fill, how = get_hows()$time, ...) {
 #' # produces an informative error message
 #' ctrMerge <- ctr_merge(sentomeasures,
 #'                       time = list(W = c("equal_weight", "almon1")),
-#'                       lexicons = list(LEX = c("LM_eng", "HENRY_eng")),
+#'                       lexicons = list(LEX = c("LM_en", "HENRY_en")),
 #'                       features = list(journals = c("notInHere", "wapo")))}
 #'
 #' @export
@@ -722,7 +588,7 @@ ctr_merge <- function(sentomeasures, features = NA, lexicons = NA, time = NA, do
                    paste0(tooFew, collapse = ", "), ".")
     warning(msg2)
   }
-  if (length(msg1) > 0 | length((msg2) > 0)) stop("Wrong inputs. See warning messages for specifics.")
+  if (length(msg1) > 0 | length((msg2) > 0)) stop("Wrong inputs. See warning message(s) for specifics.")
 
   ctr <- list(sentomeasures = sentomeasures,
               lexicons = lexicons,
@@ -749,13 +615,13 @@ ctr_merge <- function(sentomeasures, features = NA, lexicons = NA, time = NA, do
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
-#' data("lexicons", package = "sentometrics")
-#' data("valence", package = "sentometrics")
+#' data("list_lexicons", package = "sentometrics")
+#' data("list_valence_shifters", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
+#' l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
 #' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "year", lag = 3)
 #' sentomeasures <- sento_measures(corpusSample, l, ctr)
 #'
@@ -764,10 +630,10 @@ ctr_merge <- function(sentomeasures, features = NA, lexicons = NA, time = NA, do
 #'                       time = list(W = c("equal_weight", "linear")),
 #'                       features = list(journals = c("wsj", "wapo")),
 #'                       do.keep = TRUE)
-#' sentomeasuresMerged <- merge_measures(ctrMerge)
+#' sentomeasuresMerged <- measures_merge(ctrMerge)
 #'
 #' @export
-merge_measures <- function(ctr) {
+measures_merge <- function(ctr) {
 
   sentomeasures <- ctr$sentomeasures
   measures <- sentomeasures$measures
@@ -846,13 +712,13 @@ merge_measures <- function(ctr) {
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
-#' data("lexicons", package = "sentometrics")
-#' data("valence", package = "sentometrics")
+#' data("list_lexicons", package = "sentometrics")
+#' data("list_valence_shifters", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
+#' l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
 #' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "year", lag = 3)
 #' sentomeasures <- sento_measures(corpusSample, l, ctr)
 #'
@@ -908,33 +774,35 @@ to_global <- function(sentomeasures, lexicons = 1, features = 1, time = 1) {
 #' measures need to be selected. One can also supply a \code{list} of such \code{character} vectors, in which case
 #' \code{do.combine = TRUE} is set automatically, such that the separately specified combinations are selected.
 #' @param do.combine a \code{logical} indicating if only measures for which all (\code{do.combine = TRUE}) or at least one
-#' (\code{do.combine = FALSE}) of the selection components should occur in each sentiment measure's name in the selection. If
+#' (\code{do.combine = FALSE}) from \code{toSelect} should occur in each sentiment measure's name in the selection. If
 #' \code{do.combine = TRUE}, the \code{toSelect} argument can only consist of one lexicon, one feature, and one time weighting
 #' scheme at maximum.
 #'
 #' @return A modified \code{sentomeasures} object, with only the sentiment measures required, including updated information
 #' and statistics, but the original sentiment scores \code{data.table} untouched.
 #'
+#' @seealso \code{\link{measures_delete}}
+#'
 #' @examples
 #' data("usnews", package = "sentometrics")
-#' data("lexicons", package = "sentometrics")
-#' data("valence", package = "sentometrics")
+#' data("list_lexicons", package = "sentometrics")
+#' data("list_valence_shifters", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
+#' l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
 #' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "year", lag = 3)
 #' sentomeasures <- sento_measures(corpusSample, l, ctr)
 #'
 #' # different selections
-#' sel1 <- select_measures(sentomeasures, c("equal_weight"))
-#' sel2 <- select_measures(sentomeasures, c("equal_weight", "linear"), do.combine = FALSE)
-#' sel3 <- select_measures(sentomeasures, c("linear", "LM_eng"))
-#' sel4 <- select_measures(sentomeasures, list(c("linear", "wsj"), c("linear", "economy")))
+#' sel1 <- measures_select(sentomeasures, c("equal_weight"))
+#' sel2 <- measures_select(sentomeasures, c("equal_weight", "linear"), do.combine = FALSE)
+#' sel3 <- measures_select(sentomeasures, c("linear", "LM_en"))
+#' sel4 <- measures_select(sentomeasures, list(c("linear", "wsj"), c("linear", "economy")))
 #'
 #' @export
-select_measures <- function(sentomeasures, toSelect, do.combine = TRUE) {
+measures_select <- function(sentomeasures, toSelect, do.combine = TRUE) {
   check_class(sentomeasures, "sentomeasures")
 
   allOpts <- c(sentomeasures$features, sentomeasures$lexicons, sentomeasures$time)
@@ -955,11 +823,11 @@ select_measures <- function(sentomeasures, toSelect, do.combine = TRUE) {
       ind[inds == TRUE] <- TRUE
     }
   } else ind <- sapply(namesList, function(x) return(fun(toSelect %in% x)))
-  if (!any(ind)) {
-    warning("No appropriate combination is found. Input sentomeasures object is returned.")
+  if (!any(ind[-1])) {
+    warning("No appropriate combination found. Input sentomeasures object is returned.")
     return(sentomeasures)
-  } else ind[1] <- TRUE # include date column
-  measuresNew <- measures[, ind, with = FALSE]
+  }
+  measuresNew <- measures[, c(TRUE, ind[-1]), with = FALSE]
 
   sentomeasures <- update_info(sentomeasures, measuresNew) # update information in sentomeasures object
 
@@ -980,23 +848,23 @@ select_measures <- function(sentomeasures, toSelect, do.combine = TRUE) {
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
-#' data("lexicons", package = "sentometrics")
-#' data("valence", package = "sentometrics")
+#' data("list_lexicons", package = "sentometrics")
+#' data("list_valence_shifters", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
+#' l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
 #' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "year", lag = 3)
 #' sentomeasures <- sento_measures(corpusSample, l, ctr)
 #'
 #' # different subsets
-#' sub1 <- subset_measures(sentomeasures, HENRY_eng--economy--equal_weight >= 0.01)
-#' sub2 <- subset_measures(sentomeasures,
+#' sub1 <- measures_subset(sentomeasures, HENRY_en--economy--equal_weight >= 0.01)
+#' sub2 <- measures_subset(sentomeasures,
 #'    date %in% seq(as.Date("2000-01-01"), as.Date("2013-12-01"), by = "month"))
 #'
 #' @export
-subset_measures <- function(sentomeasures, subset) {
+measures_subset <- function(sentomeasures, subset) {
   check_class(sentomeasures, "sentomeasures")
 
   sub <- as.character(substitute(list(subset))[-1L])
@@ -1005,7 +873,7 @@ subset_measures <- function(sentomeasures, subset) {
     sub <- stringi::stri_replace_all(sub, "____", regex = "--")
     measures <- sentomeasures$measures
     colnames(measures) <- stringi::stri_replace_all(colnames(measures), "____", regex = "--") # -- is problematic here
-    measures <- tryCatch(measures[eval(parse(text = sub))], error = function(e) return(NULL))
+    measures <- tryCatch(measures[eval(parse(text = sub), parent.frame())], error = function(e) return(NULL))
     if (is.null(measures)) stop("The 'subset' argument must evaluate to logical.")
     colnames(measures) <- stringi::stri_replace_all(colnames(measures), "--", regex = "____")
   }
@@ -1028,7 +896,7 @@ subset_measures <- function(sentomeasures, subset) {
 #'
 #' @description Straightforward plotting method that shows all sentiment measures from the provided \code{sentomeasures}
 #' object in one plot, or the average along one of the lexicons, features and time weighting dimensions. We suggest to make
-#' use of the \code{\link{select_measures}} function when you desire to plot only a subset of the sentiment measures.
+#' use of the \code{\link{measures_select}} function when you desire to plot only a subset of the sentiment measures.
 #'
 #' @param x a \code{sentomeasures} object created using \code{\link{sento_measures}}.
 #' @param group a value from \code{c("lexicons", "features", "time", "all")}. The first three choices display the average of
@@ -1042,13 +910,13 @@ subset_measures <- function(sentomeasures, subset) {
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
-#' data("lexicons", package = "sentometrics")
-#' data("valence", package = "sentometrics")
+#' data("list_lexicons", package = "sentometrics")
+#' data("list_valence_shifters", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- setup_lexicons(lexicons[c("LM_eng")], valence[["valence_eng"]])
+#' l <- setup_lexicons(list_lexicons[c("LM_en")], list_valence_shifters[["en"]])
 #' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "year", lag = 3)
 #' sentomeasures <- sento_measures(corpusSample, l, ctr)
 #'
@@ -1107,23 +975,23 @@ plot.sentomeasures <- function(x, group = "all", ...) {
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
-#' data("lexicons", package = "sentometrics")
-#' data("valence", package = "sentometrics")
+#' data("list_lexicons", package = "sentometrics")
+#' data("list_valence_shifters", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
-#' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "year", lag = 3)
+#' l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
+#' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "day", lag = 7)
 #' sentomeasures <- sento_measures(corpusSample, l, ctr)
 #'
 #' # fill measures
-#' f1 <- fill_measures(sentomeasures)
-#' f2 <- fill_measures(sentomeasures, fill = "latest")
-#' f3 <- fill_measures(sentomeasures, fill = NA)
+#' f1 <- measures_fill(sentomeasures)
+#' f2 <- measures_fill(sentomeasures, fill = "latest")
+#' f3 <- measures_fill(sentomeasures, fill = NA)
 #'
 #' @export
-fill_measures <- function(sentomeasures, fill = "zero") {
+measures_fill <- function(sentomeasures, fill = "zero") {
   check_class(sentomeasures, "sentomeasures")
 
   by <- sentomeasures$by
@@ -1143,7 +1011,9 @@ fill_measures <- function(sentomeasures, fill = "zero") {
     measuresFill <- zoo::na.locf(measuresFill)
   } else stop("Input variable 'fill' should be either 'zero', 'latest' or NA.")
   measuresFill <- data.table(date = ts, measuresFill[, lapply(.SD, as.numeric), .SDcols = colnames(measures)[-1]])
+
   sentomeasures$measures <- measuresFill
+  sentomeasures$stats <- compute_stats(sentomeasures) # will be overwritten at end of agg_time() call
 
   return(sentomeasures)
 }
@@ -1164,13 +1034,13 @@ fill_measures <- function(sentomeasures, fill = "zero") {
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
-#' data("lexicons", package = "sentometrics")
-#' data("valence", package = "sentometrics")
+#' data("list_lexicons", package = "sentometrics")
+#' data("list_valence_shifters", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
+#' l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
 #' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "year", lag = 3)
 #' sentomeasures <- sento_measures(corpusSample, l, ctr)
 #'
@@ -1192,7 +1062,7 @@ scale.sentomeasures <- function(x, center = TRUE, scale = TRUE) {
 #'
 #' @author Samuel Borms
 #'
-#' @description This function gives the dates and documents for which aggregated sentiment is most
+#' @description This function extracts the dates and documents for which aggregated sentiment is most
 #' extreme (lowest, highest or both in absolute terms). The extracted dates are unique, even when,
 #' for example, all most extreme sentiment values (for different sentiment measures) occur on only
 #' one date.
@@ -1212,23 +1082,23 @@ scale.sentomeasures <- function(x, center = TRUE, scale = TRUE) {
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
-#' data("lexicons", package = "sentometrics")
-#' data("valence", package = "sentometrics")
+#' data("list_lexicons", package = "sentometrics")
+#' data("list_valence_shifters", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
+#' l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
 #' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "month", lag = 3)
 #' sentomeasures <- sento_measures(corpusSample, l, ctr)
 #'
 #' # extract the peaks
-#' peaksAbs <- extract_peakdocs(sentomeasures, corpus, n = 5)
-#' peaksPos <- extract_peakdocs(sentomeasures, corpus, n = 5, type = "pos")
-#' peaksNeg <- extract_peakdocs(sentomeasures, corpus, n = 5, type = "neg")
+#' peaksAbs <- peakdocs(sentomeasures, corpus, n = 5)
+#' peaksPos <- peakdocs(sentomeasures, corpus, n = 5, type = "pos")
+#' peaksNeg <- peakdocs(sentomeasures, corpus, n = 5, type = "neg")
 #'
 #' @export
-extract_peakdocs <- function(sentomeasures, sentocorpus, n = 10, type = "both", do.average = FALSE) {
+peakdocs <- function(sentomeasures, sentocorpus, n = 10, type = "both", do.average = FALSE) {
   check_class(sentomeasures, "sentomeasures")
 
   measures <- sentomeasures$measures[, -1]
@@ -1263,13 +1133,13 @@ extract_peakdocs <- function(sentomeasures, sentocorpus, n = 10, type = "both", 
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
-#' data("lexicons", package = "sentometrics")
-#' data("valence", package = "sentometrics")
+#' data("list_lexicons", package = "sentometrics")
+#' data("list_valence_shifters", package = "sentometrics")
 #'
 #' # construct a sentomeasures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- setup_lexicons(lexicons[c("LM_eng", "HENRY_eng")], valence[["valence_eng"]])
+#' l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
 #' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "year", lag = 3)
 #' sentomeasures <- sento_measures(corpusSample, l, ctr)
 #'
@@ -1284,6 +1154,118 @@ diff.sentomeasures <- function(x, lag = 1, differences = 1, ...) {
   measuresDiff <- diff(as.matrix(measures), lag = lag, differences = differences)
   sentomeasures$measures <- data.table(dates, measuresDiff)
   sentomeasures$stats <- compute_stats(sentomeasures)
+  return(sentomeasures)
+}
+
+#' @export
+nmeasures.sentomeasures <- function(sentomeasures) {
+  NCOL(sentomeasures[["measures"]]) - 1 # omit date column
+}
+
+#' Get number of sentiment measures
+#'
+#' @author Samuel Borms
+#'
+#' @description Returns the number of sentiment measures.
+#'
+#' @param sentomeasures a \code{sentomeasures} object created using \code{\link{sento_measures}}.
+#'
+#' @return The number of sentiment measures in the input \code{sentomeasures} object.
+#'
+#' @export
+nmeasures <- function(sentomeasures) {
+  UseMethod("nmeasures", sentomeasures)
+}
+
+#' @export
+nobs.sentomeasures <- function(sentomeasures) {
+  NROW(sentomeasures[["measures"]])
+}
+
+#' Get number of observations in the sentiment measures
+#'
+#' @author Samuel Borms
+#'
+#' @description Returns the number of data points available for the sentiment measures.
+#'
+#' @param sentomeasures a \code{sentomeasures} object created using \code{\link{sento_measures}}.
+#'
+#' @return The number of rows (observations/data points) in \code{sentomeasures[["measures"]]}.
+#'
+#' @export
+nobs <- function(sentomeasures) {
+  UseMethod("nobs", sentomeasures)
+}
+
+#' Delete sentiment measures
+#'
+#' @author Samuel Borms
+#'
+#' @description Deletes all sentiment measures which include either all of the given deletion components combined,
+#' or those who's name consist of at least one of the deletion components.
+#'
+#' @param sentomeasures a \code{sentomeasures} object created using \code{\link{sento_measures}}.
+#' @param toDelete a \code{character} vector of the lexicon, feature and time weighting scheme names, to indicate which
+#' measures need to be deleted. One can also supply a \code{list} of such \code{character} vectors, in which case
+#' \code{do.combine = TRUE} is set automatically, such that the separately specified combinations are deleted.
+#' @param do.combine a \code{logical} indicating if only measures for which all (\code{do.combine = TRUE}) or at least one
+#' (\code{do.combine = FALSE}) from \code{toDelete} should occur in each sentiment measure's name for deletion. If
+#' \code{do.combine = TRUE}, the \code{toDelete} argument can only consist of one lexicon, one feature, and one time weighting
+#' scheme at maximum.
+#'
+#' @return A modified \code{sentomeasures} object, with the required sentiment measures deleted, including updated information
+#' and statistics, but the original sentiment scores \code{data.table} untouched.
+#'
+#' @seealso \code{\link{measures_select}}
+#'
+#' @examples
+#' data("usnews", package = "sentometrics")
+#' data("list_lexicons", package = "sentometrics")
+#' data("list_valence_shifters", package = "sentometrics")
+#'
+#' # construct a sentomeasures object to start with
+#' corpus <- sento_corpus(corpusdf = usnews)
+#' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
+#' l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
+#' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "year", lag = 3)
+#' sentomeasures <- sento_measures(corpusSample, l, ctr)
+#'
+#' # different deletions
+#' del1 <- measures_delete(sentomeasures, c("equal_weight"))
+#' del2 <- measures_delete(sentomeasures, c("equal_weight", "linear"), do.combine = FALSE)
+#' del3 <- measures_delete(sentomeasures, c("linear", "LM_en"))
+#' del4 <- measures_delete(sentomeasures, list(c("linear", "wsj"), c("linear", "economy")))
+#'
+#' @export
+measures_delete <- function(sentomeasures, toDelete, do.combine = TRUE) {
+  check_class(sentomeasures, "sentomeasures")
+
+  allOpts <- c(sentomeasures$features, sentomeasures$lexicons, sentomeasures$time)
+  valid <- unlist(toDelete) %in% allOpts
+  if (any(!valid)) {
+    stop("Following components make up none of the sentiment measures: ", paste0(unique(toDelete[!valid]), collapse = ', '))
+  }
+
+  measures <- sentomeasures$measures
+  namesList <- stringi::stri_split(colnames(measures), regex = "--")
+  if (is.list(toDelete)) do.combine <- TRUE
+  if (do.combine == TRUE) fun <- all
+  else fun <- any
+  if (is.list(toDelete)) {
+    ind <- rep(FALSE, length(namesList))
+    for (com in toDelete) {
+      inds <- sapply(namesList, function(x) return(fun(com %in% x)))
+      ind[inds == TRUE] <- TRUE
+    }
+  } else ind <- sapply(namesList, function(x) return(fun(toDelete %in% x)))
+  if (all(ind[-1]) || all(!ind[-1])) {
+    warning("No appropriate combination found or all measures selected for deletion. Input sentomeasures object is returned.")
+    return(sentomeasures)
+  }
+  measuresNew <- measures[, c(TRUE, !ind[-1]), with = FALSE]
+
+  sentomeasures <- update_info(sentomeasures, measuresNew) # update information in sentomeasures object
+
   return(sentomeasures)
 }
 

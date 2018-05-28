@@ -1,9 +1,26 @@
 
+## sentometrics 0.4.0
+
+- new functions: `measures_delete()`, `nmeasures()`, `nobs()`, and `to_sentocorpus()`
+- dropped `do.normalizeAlm` argument in `ctr_agg()`, but kept in the `almons()` function
+- inverted order of rows in output of `almons()` function to be consistent with Ardia et al. (2017) paper
+- renamed the functions `subset_measures()`, `select_measures()`, `merge_measures`, and `fill_measures` to `measures_xyz()`
+- renamed the function `extract_peakdocs()` to `peakdocs()` for brevity
+- renamed `lexicons` to `list_lexicons`, and `valence` to `list_valence_shifters` 
+- the `stats` element of a `sentomeasures` object is now also updated in `measures_fill()`
+- changed `"_eng"` to `"_en"`' in `list_lexicons` and `list_valence_shifters` objects, to be in accordance with two-letter ISO language naming
+- changed `"valence_language"` naming to `"language"` in `list_valence_shifters` object
+- the `compute_sentiment()` function now also accepts a **`quanteda`** `corpus` object and a `character` vector
+- the `add_features()` function now also accepts a **`quanteda`** `corpus` object
+- added an `nCore` argument to the `compute_sentiment()`, `ctr_agg()`, and `ctr_model()` functions to allow for (more straightforward) parallelized computations, and omitted the `do.parallel` argument in the `ctr_model()` function
+- added a `do.difference` argument to the `ctr_model()` function and expanded the use of the already existing `oos` argument
+- brought **`ggplot2`** and **`foreach`** to Imports
+
 ## sentometrics 0.3.5
 
 - faster `to_global()`
 - set `tolower = FALSE` of `dfm()` constructor in `compute_sentiment()`
-- changed `intercept` argument to `do.intercept` for consistency
+- changed `intercept` argument in `ctr_model()` to `do.intercept` for consistency
 - proper checks on values of feature columns in `sento_corpus()` and `add_features()`
 
 ## sentometrics 0.3.0

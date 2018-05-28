@@ -4,7 +4,7 @@
 \name{sentometrics-package}
 \alias{sentometrics}
 \alias{sentometrics-package}
-\title{An Integrated Framework for Textual Sentiment Time Series Aggregation and Prediction}
+\title{sentometrics: An Integrated Framework for Textual Sentiment Time Series Aggregation and Prediction}
 \description{
 The \pkg{sentometrics} package is designed to do time series analysis based on textual sentiment. It accounts
 for the intrinsic challenge that, for a given text, sentiment can be computed in many ways, as well as the large
@@ -30,7 +30,7 @@ Please cite the package in publications. Use \code{citation("sentometrics")}.
 \itemize{
 \item Feature generation: \code{\link{sento_corpus}}, \code{\link{add_features}}
 \item Sentiment computation and aggregation into sentiment measures: \code{\link{ctr_agg}},
-\code{\link{compute_sentiment}}, \code{\link{sento_measures}}, \code{\link{merge_measures}}, \code{\link{to_global}}
+\code{\link{compute_sentiment}}, \code{\link{sento_measures}}, \code{\link{measures_merge}}, \code{\link{to_global}}
 \item Sparse modelling: \code{\link{ctr_model}}, \code{\link{sento_model}}
 \item Prediction and post-modelling analysis: \code{\link{predict.sentomodel}}, \code{\link{retrieve_attributions}},
 \code{\link{plot_attributions}}, \code{\link{perform_MCS}}

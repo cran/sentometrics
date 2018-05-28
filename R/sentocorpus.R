@@ -9,7 +9,7 @@
 #' required for better memory management, corpus manipulation, and sentiment calculation. This function mainly performs
 #' a set of checks on the input data and prepares the corpus for further sentiment analysis.
 #'
-#' @details A \code{sentocorpus} object can be regarded as a specialized instance of a \pkg{quanteda} corpus. In theory, all
+#' @details A \code{sentocorpus} object is a specialized instance of a \pkg{quanteda} corpus. In theory, all
 #' \pkg{quanteda} functions applicable to its corpus object can also be applied to a \code{sentocorpus} object. However,
 #' changing a given \code{sentocorpus} object too drastically using some of \pkg{quanteda}'s functions might alter the very
 #' structure the corpus is meant to have (as defined in the \code{corpusdf} argument) to be able to be used as an input
@@ -18,7 +18,7 @@
 #' additional features, use \code{\link{add_features}}.
 #'
 #' @param corpusdf a \code{data.frame} (or a \code{data.table}, or a \code{tbl}) with as named columns: a document \code{"id"}
-#' column, a \code{"date"} column, a \code{"text"} column (i.e. the columns where all texts to analyze reside), and a
+#' column, a \code{"date"} column, a \code{"texts"} column (i.e., the columns where all texts to analyze reside), and a
 #' series of feature columns of type \code{numeric}, with values pointing to the applicability of a particular feature to a
 #' particular text. The latter columns can be binary (\code{1} means the feature is applicable to the document in the same
 #' row) or a value between 0 and 1 to specify the degree of connectedness of a feature to a document. Features could be
@@ -29,13 +29,14 @@
 #' mode. All spaces in the names of the features are replaced by underscores. If the feature columns have values not
 #' between 0 and 1, they will be rescaled column-wise and a warning will be issued.
 #' @param do.clean a \code{logical}, if \code{TRUE} all texts undergo a cleaning routine to eliminate common textual garbage.
-#' This includes a brute force replacement of HTML tags and non-alphanumeric characters by an empty string.
+#' This includes a brute force replacement of HTML tags and non-alphanumeric characters by an empty string. To use with care
+#' if the text is meant to have non-alphanumeric characters! Preferably, cleaning is done outside of this function call.
 #'
 #' @return A \code{sentocorpus} object, derived from a \pkg{quanteda} corpus classed \code{list} with the elements
 #' \code{"documents"}, \code{"metadata"}, and \code{"settings"} kept. The first element incorporates the corpus
 #' represented as a \code{data.frame}.
 #'
-#' @seealso \code{\link[quanteda]{corpus}}
+#' @seealso \code{\link[quanteda]{corpus}}, \code{\link{add_features}}
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
@@ -56,22 +57,24 @@
 sento_corpus <- function(corpusdf, do.clean = FALSE) {
 
   corpusdf <- as.data.frame(corpusdf)
-  # check for presence of id, date and text columns
-  nonfeatures <- c("id", "date", "text")
+
+  # check for presence of id, date and texts columns
+  nonfeatures <- c("id", "date", "texts")
   cols <- stringi::stri_replace_all(colnames(corpusdf), "_", regex = " ")
   colnames(corpusdf) <- cols
   if (!all(nonfeatures %in% cols))
-    stop("The input data.frame should have at least three columns, named 'id', 'date' and 'text'.")
-
-  # check for type of text column
-  if (!is.character(corpusdf[["text"]])) stop("The 'text' column should be of type character.")
+    stop("The input data.frame should have at least three columns named 'id', 'date' and 'texts'.")
+  # check for type of texts column
+  if (!is.character(corpusdf[["texts"]])) stop("The 'texts' column should be of type character.")
   # check for date format
   dates <- as.Date(corpusdf$date, format = "%Y-%m-%d")
   if (any(is.na(dates))) stop("Some dates are not in appropriate format. Should be 'yyyy-mm-dd'.")
   else corpusdf$date <- dates
   # check for duplicated feature names
   features <- cols[!(cols %in% nonfeatures)]
-  corpusdf <- corpusdf[, c("id", "date", "text", features)]
+
+  corpusdf <- corpusdf[, c("id", "date", "texts", features)]
+  info <- "This is a sentocorpus object derived from a quanteda corpus object."
   if (length(features) == 0) {
     corpusdf[["dummy"]] <- 1
     warning("No features detected. A 'dummy' feature valued at 1 throughout is added.")
@@ -86,8 +89,15 @@ sento_corpus <- function(corpusdf, do.clean = FALSE) {
       toDrop <- names(which(!isNumeric))
       corpusdf[, toDrop] <- NULL
       warning(paste0("Following feature columns were dropped as they are not numeric: ", paste0(toDrop, collapse = ", "), "."))
-      if (length(toDrop) == length(isNumeric))
-        stop("No remaining feature columns. Please add uniquely named feature columns of type numeric.")
+      if (length(toDrop) == length(isNumeric)) {
+        corpusdf[["dummy"]] <- 1
+        warning("No remaining feature columns. A 'dummy' feature valued at 1 throughout is added.")
+        if (do.clean) corpusdf <- clean(corpusdf)
+        corp <- quanteda::corpus(x = corpusdf, docid_field = "id", text_field = "texts", metacorpus = list(info = info))
+        corp$tokens <- NULL
+        class(corp) <- c("sentocorpus", class(corp))
+        return(corp)
+      }
     }
     featuresKept <- names(which(isNumeric))
     mins <- sapply(featuresKept, function(f) min(corpusdf[[f]], na.rm = TRUE)) >= 0
@@ -102,13 +112,10 @@ sento_corpus <- function(corpusdf, do.clean = FALSE) {
       warning(paste0("Following feature columns have been rescaled: ", paste0(toScale, collapse = ", "), "."))
     }
   }
+
   if (do.clean) corpusdf <- clean(corpusdf)
-
-  # construct corpus as a quanteda corpus
-  corp <- quanteda::corpus(x = corpusdf, docid_field = "id", text_field = "text",
-                           metacorpus = list(info = "This is a sentocorpus object directly based on the quanteda corpus."))
+  corp <- quanteda::corpus(x = corpusdf, docid_field = "id", text_field = "texts", metacorpus = list(info = info))
   corp$tokens <- NULL
-
   class(corp) <- c("sentocorpus", class(corp))
 
   return(corp)
@@ -121,12 +128,54 @@ clean <- function(corpusdf) {
   return(corpusdf)
 }
 
-#' Add feature columns to a sentocorpus
+#' Convert a quanteda corpus object into a sentocorpus object
+#'
+#' @author Samuel Borms
+#'
+#' @description Converts a \code{\link[quanteda]{corpus}} object into a \code{sentocorpus} object, by adding
+#' user-supplied dates and doing proper rearranging.
+#'
+#' @param corpus a quanteda \code{\link[quanteda]{corpus}} object.
+#' @param dates a sequence of dates as \code{"yyyy-mm-dd"}, of the same length as the number of documents
+#' in the input \code{corpus}.
+#' @param do.clean see \code{do.clean} argument from the \code{\link{sento_corpus}} function.
+#'
+#' @return A \code{sentocorpus} object, as returned by the \code{\link{sento_corpus}} function.
+#'
+#' @seealso \code{\link[quanteda]{corpus}}, \code{\link{sento_corpus}}
+#'
+#' @examples
+#' data("usnews", package = "sentometrics")
+#'
+#' # reshuffle usnews data.frame
+#' dates <- usnews$date
+#' usnews$id <- usnews$date <- NULL
+#' usnews$wrong <- "notNumeric"
+#' colnames(usnews)[1] <- "myTexts"
+#'
+#' # set up quanteda corpus object
+#' corpusQ <- quanteda::corpus(usnews, text_field = "myTexts")
+#'
+#' # corpus conversion
+#' corpusS <- to_sentocorpus(corpusQ, dates = dates)
+#'
+#' @export
+to_sentocorpus <- function(corpus, dates, do.clean = FALSE) {
+  if (length(dates) != quanteda::ndoc(corpus))
+    stop("The number of dates in 'dates' should be equal to the number of documents in 'corpus'.")
+  corpusdf <- data.table::as.data.table(corpus$documents)
+  corpusdf[, id := quanteda::docnames(corpus)]
+  corpusdf[, date := dates]
+  data.table::setcolorder(corpusdf, c("id", "date", "texts", setdiff(names(corpusdf), c("id", "date", "texts"))))
+  return(sento_corpus(corpusdf, do.clean))
+}
+
+#' Add feature columns to a (sento)corpus object
 #'
 #' @author Samuel Borms
 #'
 #' @description Adds new feature columns, either user-supplied or based on keyword(s)/regex pattern search, to
-#' a provided \code{sentocorpus} object.
+#' a provided \code{sentocorpus} or \pkg{quanteda} \code{\link[quanteda]{corpus}} object.
 #'
 #' @details If a provided feature name is already part of the corpus, it will be replaced. The \code{featuresdf} and
 #' \code{keywords} arguments can be provided at the same time, or only one of them, leaving the other at \code{NULL}.
@@ -134,12 +183,17 @@ clean <- function(corpusdf) {
 #' the keywords into a simple regex expression, involving \code{"\\b"} for exact word boundary matching and (if multiple
 #' keywords) \code{|} as OR operator. The elements associated to \code{TRUE} do not undergo the transformation, and are
 #' evaluated as given, if the corresponding keywords vector consists of only one expression. Scaling between 0 and 1
-#' is performed via the min-max normalization, per column.
+#' is performed via the min-max normalization, per column. Binary features can be used as a mechanism to select the
+#' texts which have to be integrated in the respective feature-based sentiment measure(s), but the
+#' within-document aggregation still considers the entire corpus in case of \code{"tf-idf"}, and the option
+#' \code{do.ignoreZeros} should be set to \code{TRUE} (see \code{\link{ctr_agg}}). Because of this (implicit) selection
+#' that can be performed, having complementary features (e.g., \code{"economy"} and \code{"noneconomy"}) makes sense.
 #'
-#' @param sentocorpus a \code{sentocorpus} object created with \code{\link{sento_corpus}}.
+#' @param corpus a \code{sentocorpus} object created with \code{\link{sento_corpus}}, or a \pkg{quanteda}
+#' \code{\link[quanteda]{corpus}} object.
 #' @param featuresdf a named \code{data.frame} of type \code{numeric} where each columns is a new feature to be added to the
-#' inputted \code{sentocorpus} object. If the number of rows in \code{featuresdf} is not equal to the number of documents
-#' in \code{sentocorpus}, recycling will occur. The numeric values should be between 0 and 1 (included).
+#' inputted \code{corpus} object. If the number of rows in \code{featuresdf} is not equal to the number of documents
+#' in \code{corpus}, recycling will occur. The numeric values should be between 0 and 1 (included).
 #' @param keywords a named \code{list}. For every element, a new feature column is added with a value of 1 for the texts
 #' in which (at least one of) the keyword(s) appear(s), and 0 if not (for \code{do.binary = TRUE}), or with as value the
 #' normalized number of times the keyword(s) occur(s) in the text (for \code{do.binary = FALSE}). If no texts match a
@@ -151,12 +205,12 @@ clean <- function(corpusdf) {
 #' \code{list}, or a single value if it applies to all. It should be set to \code{TRUE} at those positions where a single
 #' regex expression is used to identify the particular feature.
 #'
-#' @return An updated \code{sentocorpus} object.
+#' @return An updated \code{corpus} object.
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
 #'
-#' # construct a corpus and add a random feature to it
+#' # construct a corpus and add (a) feature(s) to it
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpus1 <- add_features(corpus,
 #'                         featuresdf = data.frame(random = runif(quanteda::ndoc(corpus))))
@@ -174,9 +228,15 @@ clean <- function(corpusdf) {
 #'
 #' sum(corpus3$documents$pres) == sum(corpus4$documents$pres2) # TRUE
 #'
+#' # adding a complementary feature
+#' nonpres <- data.frame(nonpres = as.numeric(!quanteda::docvars(corpus2)[["pres"]]))
+#' corpus2 <- add_features(corpus2,
+#'                         featuresdf = nonpres)
+#'
 #' @export
-add_features <- function(sentocorpus, featuresdf = NULL, keywords = NULL, do.binary = TRUE, do.regex = FALSE) {
-  check_class(sentocorpus, "sentocorpus")
+add_features <- function(corpus, featuresdf = NULL, keywords = NULL, do.binary = TRUE, do.regex = FALSE) {
+  check_class(corpus, "corpus")
+
   if (!is.null(featuresdf)) {
     stopifnot(is.data.frame(featuresdf))
     features <- stringi::stri_replace_all(colnames(featuresdf), "_", regex = " ")
@@ -186,17 +246,17 @@ add_features <- function(sentocorpus, featuresdf = NULL, keywords = NULL, do.bin
     check <- sapply(1:length(features), function(j) return(all(c(isNumeric[j], mins[j], maxs[j]))))
     toAdd <- which(check) # logical vector
     for (i in toAdd) {
-      quanteda::docvars(sentocorpus, field = features[i]) <- featuresdf[[i]]
+      quanteda::docvars(corpus, field = features[i]) <- featuresdf[[i]]
     }
     if (length(toAdd) != length(check))
         warning(paste0("Following columns are not added as they are not of type numeric or have values outside [0, 1]: ",
-                     colnames(featuresdf)[which(!toAdd)]))
+                       paste0(colnames(featuresdf)[which(!check)], collapse = ", ")))
   }
   if (!is.null(keywords)) {
     stopifnot(is.logical(do.binary) && is.logical(do.regex))
     if ("" %in% names(keywords) || is.null(names(keywords)) || !inherits(keywords, "list"))
       stop("Please provide a list with proper names as part of the 'keywords' argument.")
-    textsAll <- quanteda::texts(sentocorpus)
+    textsAll <- quanteda::texts(corpus)
     if (do.binary == TRUE) fct <- stringi::stri_detect
     else fct <- stringi::stri_count
     N <- length(keywords)
@@ -219,10 +279,10 @@ add_features <- function(sentocorpus, featuresdf = NULL, keywords = NULL, do.bin
         warning(paste0("Feature ", kwName, " is not added as it occurs in none of the documents."))
       else {
         occurrences <- (occurrences - min(occurrences)) / (max(occurrences) - min(occurrences)) # normalize to [0, 1]
-        quanteda::docvars(sentocorpus, field = kwName) <- occurrences
+        quanteda::docvars(corpus, field = kwName) <- occurrences
       }
     }
   }
-  return(sentocorpus)
+  return(corpus)
 }
 
