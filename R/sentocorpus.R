@@ -3,38 +3,37 @@
 #'
 #' @author Samuel Borms
 #'
-#' @description Formalizes a collection of texts into a well-defined corpus object, by mainly calling the
-#' \code{\link[quanteda]{corpus}} function from the \pkg{quanteda} package. This package provides a fast text mining
-#' infrastructure; for more info, see \href{http://quanteda.io/index.html}{quanteda}. Their formal corpus structure is
-#' required for better memory management, corpus manipulation, and sentiment calculation. This function mainly performs
-#' a set of checks on the input data and prepares the corpus for further sentiment analysis.
+#' @description Formalizes a collection of texts into a well-defined corpus object derived from the
+#' \code{\link[quanteda]{corpus}} object. The \pkg{quanteda} package provides a robust text mining infrastructure,
+#' see \href{http://quanteda.io/index.html}{quanteda}. Their corpus structure brings better memory management and a
+#' handy corpus manipulation toolset. This function performs a set of checks on the input data and prepares the
+#' corpus for further analysis.
 #'
-#' @details A \code{sentocorpus} object is a specialized instance of a \pkg{quanteda} corpus. In theory, all
-#' \pkg{quanteda} functions applicable to its corpus object can also be applied to a \code{sentocorpus} object. However,
-#' changing a given \code{sentocorpus} object too drastically using some of \pkg{quanteda}'s functions might alter the very
-#' structure the corpus is meant to have (as defined in the \code{corpusdf} argument) to be able to be used as an input
-#' in other functions of the \pkg{sentometrics} package. There are functions, including \code{\link[quanteda]{corpus_sample}}
-#' or \code{\link[quanteda]{corpus_subset}}, that do not change the actual corpus structure and may come in handy. To add
-#' additional features, use \code{\link{add_features}}.
+#' @details A \code{sentocorpus} object is a specialized instance of a \pkg{quanteda} \code{\link[quanteda]{corpus}}. Any
+#' \pkg{quanteda} function applicable to its \code{\link[quanteda]{corpus}} object can also be applied to a \code{sentocorpus}
+#' object. However, changing a given \code{sentocorpus} object too drastically using some of \pkg{quanteda}'s functions might
+#' alter the very structure the corpus is meant to have (as defined in the \code{corpusdf} argument) to be able to be used as
+#' an input in other functions of the \pkg{sentometrics} package. There are functions, including
+#' \code{\link[quanteda]{corpus_sample}} or \code{\link[quanteda]{corpus_subset}}, that do not change the actual corpus
+#' structure and may come in handy. To add additional features, use \code{\link{add_features}}. Binary features are useful as
+#' a mechanism to select the texts which have to be integrated in the respective feature-based sentiment measure(s), but
+#' applies only when \code{do.ignoreZeros = TRUE}. Because of this (implicit) selection that can be performed, having
+#' complementary features (e.g., \code{"economy"} and \code{"noneconomy"}) makes sense.
 #'
 #' @param corpusdf a \code{data.frame} (or a \code{data.table}, or a \code{tbl}) with as named columns: a document \code{"id"}
-#' column, a \code{"date"} column, a \code{"texts"} column (i.e., the columns where all texts to analyze reside), and a
-#' series of feature columns of type \code{numeric}, with values pointing to the applicability of a particular feature to a
-#' particular text. The latter columns can be binary (\code{1} means the feature is applicable to the document in the same
-#' row) or a value between 0 and 1 to specify the degree of connectedness of a feature to a document. Features could be
-#' topics (e.g., legal, political, or economic), but also article sources (e.g., online or printed press), amongst many
-#' more options. If you have no knowledge about features or no particular features are of interest to your analysis,
-#' provide no feature columns. In that case, the corpus constructor automatically adds an additional feature column named
-#' \code{"dummy"}. Provide the \code{date} column as \code{"yyyy-mm-dd"}. The \code{id} column should be in \code{character}
-#' mode. All spaces in the names of the features are replaced by underscores. If the feature columns have values not
-#' between 0 and 1, they will be rescaled column-wise and a warning will be issued.
+#' column (in \code{character} mode), a \code{"date"} column (as \code{"yyyy-mm-dd"}), a \code{"texts"} column (in
+#' \code{character} mode), and a series of feature columns of type \code{numeric}, with values between 0 and 1 to specify the
+#' degree of connectedness of a feature to a document. Features could be topics (e.g., legal or economic),
+#' article sources (e.g., online or print), amongst many more options. When no feature column is provided, a
+#' feature named \code{"dummy"} is added. All spaces in the names of the features are replaced by \code{'_'}. Feature
+#' columns with values not between 0 and 1 are rescaled column-wise.
 #' @param do.clean a \code{logical}, if \code{TRUE} all texts undergo a cleaning routine to eliminate common textual garbage.
 #' This includes a brute force replacement of HTML tags and non-alphanumeric characters by an empty string. To use with care
 #' if the text is meant to have non-alphanumeric characters! Preferably, cleaning is done outside of this function call.
 #'
-#' @return A \code{sentocorpus} object, derived from a \pkg{quanteda} corpus classed \code{list} with the elements
-#' \code{"documents"}, \code{"metadata"}, and \code{"settings"} kept. The first element incorporates the corpus
-#' represented as a \code{data.frame}.
+#' @return A \code{sentocorpus} object, derived from a \pkg{quanteda} \code{\link[quanteda]{corpus}} classed \code{list}
+#' with elements \code{"documents"}, \code{"metadata"}, and \code{"settings"} kept. The first element incorporates
+#' the corpus represented as a \code{data.frame}.
 #'
 #' @seealso \code{\link[quanteda]{corpus}}, \code{\link{add_features}}
 #'
@@ -70,11 +69,12 @@ sento_corpus <- function(corpusdf, do.clean = FALSE) {
   dates <- as.Date(corpusdf$date, format = "%Y-%m-%d")
   if (any(is.na(dates))) stop("Some dates are not in appropriate format. Should be 'yyyy-mm-dd'.")
   else corpusdf$date <- dates
-  # check for duplicated feature names
   features <- cols[!(cols %in% nonfeatures)]
-
+  if (!is_names_correct(features))
+    stop("At least one feature's name contains '-'. Please provide proper names.")
   corpusdf <- corpusdf[, c("id", "date", "texts", features)]
   info <- "This is a sentocorpus object derived from a quanteda corpus object."
+
   if (length(features) == 0) {
     corpusdf[["dummy"]] <- 1
     warning("No features detected. A 'dummy' feature valued at 1 throughout is added.")
@@ -92,7 +92,7 @@ sento_corpus <- function(corpusdf, do.clean = FALSE) {
       if (length(toDrop) == length(isNumeric)) {
         corpusdf[["dummy"]] <- 1
         warning("No remaining feature columns. A 'dummy' feature valued at 1 throughout is added.")
-        if (do.clean) corpusdf <- clean(corpusdf)
+        if (do.clean) corpusdf <- clean_texts(corpusdf)
         corp <- quanteda::corpus(x = corpusdf, docid_field = "id", text_field = "texts", metacorpus = list(info = info))
         corp$tokens <- NULL
         class(corp) <- c("sentocorpus", class(corp))
@@ -113,7 +113,7 @@ sento_corpus <- function(corpusdf, do.clean = FALSE) {
     }
   }
 
-  if (do.clean) corpusdf <- clean(corpusdf)
+  if (do.clean) corpusdf <- clean_texts(corpusdf)
   corp <- quanteda::corpus(x = corpusdf, docid_field = "id", text_field = "texts", metacorpus = list(info = info))
   corp$tokens <- NULL
   class(corp) <- c("sentocorpus", class(corp))
@@ -121,10 +121,10 @@ sento_corpus <- function(corpusdf, do.clean = FALSE) {
   return(corp)
 }
 
-clean <- function(corpusdf) {
-  corpusdf$text <- stringi::stri_replace_all(corpusdf$text, replacement = "", regex = "<.*?>") # html tags
-  corpusdf$text <- stringi::stri_replace_all(corpusdf$text, replacement = "", regex = '[\\"]')
-  corpusdf$text <- stringi::stri_replace_all(corpusdf$text, replacement = "", regex = "[^-a-zA-Z0-9,&. ]")
+clean_texts <- function(corpusdf) {
+  corpusdf$texts <- stringi::stri_replace_all(corpusdf$texts, replacement = "", regex = "<.*?>") # html tags
+  corpusdf$texts <- stringi::stri_replace_all(corpusdf$texts, replacement = "", regex = '[\\"]')
+  corpusdf$texts <- stringi::stri_replace_all(corpusdf$texts, replacement = "", regex = "[^-a-zA-Z0-9,&. ]")
   return(corpusdf)
 }
 
@@ -166,7 +166,7 @@ to_sentocorpus <- function(corpus, dates, do.clean = FALSE) {
   corpusdf <- data.table::as.data.table(corpus$documents)
   corpusdf[, id := quanteda::docnames(corpus)]
   corpusdf[, date := dates]
-  data.table::setcolorder(corpusdf, c("id", "date", "texts", setdiff(names(corpusdf), c("id", "date", "texts"))))
+  setcolorder(corpusdf, c("id", "date", "texts", setdiff(names(corpusdf), c("id", "date", "texts"))))
   return(sento_corpus(corpusdf, do.clean))
 }
 
@@ -175,19 +175,16 @@ to_sentocorpus <- function(corpus, dates, do.clean = FALSE) {
 #' @author Samuel Borms
 #'
 #' @description Adds new feature columns, either user-supplied or based on keyword(s)/regex pattern search, to
-#' a provided \code{sentocorpus} or \pkg{quanteda} \code{\link[quanteda]{corpus}} object.
+#' a provided \code{sentocorpus} or a \pkg{quanteda} \code{\link[quanteda]{corpus}} object.
 #'
 #' @details If a provided feature name is already part of the corpus, it will be replaced. The \code{featuresdf} and
-#' \code{keywords} arguments can be provided at the same time, or only one of them, leaving the other at \code{NULL}.
-#' The \code{do.regex} argument points to the corresponding elements in \code{keywords}. For \code{FALSE}, we transform
-#' the keywords into a simple regex expression, involving \code{"\\b"} for exact word boundary matching and (if multiple
-#' keywords) \code{|} as OR operator. The elements associated to \code{TRUE} do not undergo the transformation, and are
-#' evaluated as given, if the corresponding keywords vector consists of only one expression. Scaling between 0 and 1
-#' is performed via the min-max normalization, per column. Binary features can be used as a mechanism to select the
-#' texts which have to be integrated in the respective feature-based sentiment measure(s), but the
-#' within-document aggregation still considers the entire corpus in case of \code{"tf-idf"}, and the option
-#' \code{do.ignoreZeros} should be set to \code{TRUE} (see \code{\link{ctr_agg}}). Because of this (implicit) selection
-#' that can be performed, having complementary features (e.g., \code{"economy"} and \code{"noneconomy"}) makes sense.
+#' \code{keywords} arguments can be provided at the same time, or only one of them, leaving the other at \code{NULL}. We use
+#' the \pkg{stringi} package for searching the keywords. The \code{do.regex} argument points to the corresponding elements
+#' in \code{keywords}. For \code{FALSE}, we transform the keywords into a simple regex expression, involving \code{"\\b"} for
+#' exact word boundary matching and (if multiple keywords) \code{|} as OR operator. The elements associated to \code{TRUE} do
+#' not undergo this transformation, and are evaluated as given, if the corresponding keywords vector consists of only one
+#' expression. For a large corpus and/or complex regex patterns, this function may require some patience. Scaling between 0
+#' and 1 is performed via min-max normalization, per column.
 #'
 #' @param corpus a \code{sentocorpus} object created with \code{\link{sento_corpus}}, or a \pkg{quanteda}
 #' \code{\link[quanteda]{corpus}} object.
@@ -200,7 +197,7 @@ to_sentocorpus <- function(corpus, dates, do.clean = FALSE) {
 #' keyword, no column is added. The \code{list} names are used as the names of the new features. For more complex searching,
 #' instead of keywords, one can also directly use a single regex expression to define a new feature (cf. the details section).
 #' @param do.binary a \code{logical}, cf. argument \code{keywords}. If \code{do.binary = FALSE}, the counts are normalized
-#' between 0 and 1,
+#' between 0 and 1.
 #' @param do.regex a \code{logical} vector equal in length to the number of elements in the \code{keywords} argument
 #' \code{list}, or a single value if it applies to all. It should be set to \code{TRUE} at those positions where a single
 #' regex expression is used to identify the particular feature.
@@ -210,8 +207,10 @@ to_sentocorpus <- function(corpus, dates, do.clean = FALSE) {
 #' @examples
 #' data("usnews", package = "sentometrics")
 #'
+#' set.seed(505)
+#'
 #' # construct a corpus and add (a) feature(s) to it
-#' corpus <- sento_corpus(corpusdf = usnews)
+#' corpus <- quanteda::corpus_sample(sento_corpus(corpusdf = usnews), 500)
 #' corpus1 <- add_features(corpus,
 #'                         featuresdf = data.frame(random = runif(quanteda::ndoc(corpus))))
 #' corpus2 <- add_features(corpus,
@@ -221,9 +220,9 @@ to_sentocorpus <- function(corpus, dates, do.clean = FALSE) {
 #'                         do.binary = FALSE)
 #' corpus4 <- add_features(corpus,
 #'                         featuresdf = data.frame(all = 1),
-#'                         keywords = list(pres1 = c("Obama|US [p|P]resident"),
-#'                                         pres2 = c("\\bObama\\b|\\bUS president\\b"),
-#'                                         war = c("war")),
+#'                         keywords = list(pres1 = "Obama|US [p|P]resident",
+#'                                         pres2 = "\\bObama\\b|\\bUS president\\b",
+#'                                         war = "war"),
 #'                         do.regex = c(TRUE, TRUE, FALSE))
 #'
 #' sum(corpus3$documents$pres) == sum(corpus4$documents$pres2) # TRUE
@@ -239,6 +238,8 @@ add_features <- function(corpus, featuresdf = NULL, keywords = NULL, do.binary =
 
   if (!is.null(featuresdf)) {
     stopifnot(is.data.frame(featuresdf))
+    if (!is_names_correct(colnames(featuresdf)))
+      stop("At least one feature's name in 'featuresdf' contains '-'. Please provide proper names.")
     features <- stringi::stri_replace_all(colnames(featuresdf), "_", regex = " ")
     isNumeric <- sapply(featuresdf, is.numeric)
     mins <- sapply(featuresdf, min, na.rm = TRUE) >= 0
@@ -256,6 +257,8 @@ add_features <- function(corpus, featuresdf = NULL, keywords = NULL, do.binary =
     stopifnot(is.logical(do.binary) && is.logical(do.regex))
     if ("" %in% names(keywords) || is.null(names(keywords)) || !inherits(keywords, "list"))
       stop("Please provide a list with proper names as part of the 'keywords' argument.")
+    if (!is_names_correct(names(keywords)))
+      stop("At least one feature's name in 'keywords' contains '-'. Please provide proper names.")
     textsAll <- quanteda::texts(corpus)
     if (do.binary == TRUE) fct <- stringi::stri_detect
     else fct <- stringi::stri_count

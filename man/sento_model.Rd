@@ -2,20 +2,20 @@
 % Please edit documentation in R/sentomodel.R
 \name{sento_model}
 \alias{sento_model}
-\title{Optimized and automated sparse regression}
+\title{Optimized and automated sentiment-based sparse regression}
 \usage{
 sento_model(sentomeasures, y, x = NULL, ctr)
 }
 \arguments{
-\item{sentomeasures}{a \code{sentomeasures} object created using \code{\link{sento_measures}}. There should be at least
-two explanatory variables including the ones provided through the \code{x} argument.}
+\item{sentomeasures}{a \code{sentomeasures} object created using \code{\link{sento_measures}}.}
 
 \item{y}{a one-column \code{data.frame} or a \code{numeric} vector capturing the dependent (response) variable. In case of
 a logistic regression, the response variable is either a \code{factor} or a \code{matrix} with the factors represented by
 the columns as binary indicators, with the second factor level or column as the reference class in case of a binomial
 regression. No \code{NA} values are allowed.}
 
-\item{x}{a named \code{data.frame} with other explanatory variables as \code{numeric}, by default set to \code{NULL}.}
+\item{x}{a named \code{data.table}, \code{data.frame} or \code{matrix} with other explanatory variables as \code{numeric}, by
+default set to \code{NULL}.}
 
 \item{ctr}{output from a \code{\link{ctr_model}} call.}
 }
@@ -23,19 +23,22 @@ regression. No \code{NA} values are allowed.}
 If \code{ctr$do.iter = FALSE}, a \code{sentomodel} object which is a \code{list} containing:
 \item{reg}{optimized regression, i.e. a model-specific \code{glmnet} object.}
 \item{model}{the input argument \code{ctr$model}, to indicate the type of model estimated.}
-\item{x}{a \code{matrix} of the values used in the regression for all explanatory variables.}
+\item{x}{a \code{matrix} of the values for all explanatory variables used in the regression.}
 \item{alpha}{calibrated alpha.}
 \item{lambda}{calibrated lambda.}
-\item{trained}{output from \code{\link[caret]{train}} call (if \code{ctr$type =} "\code{cv}").}
-\item{ic}{a \code{list} composed of two elements: the information criterion used in the calibration under
-\code{"criterion"}, and a vector of all minimum information criterion values for each value in \code{alphas}
-under \code{"opts"} (if \code{ctr$type !=} "\code{cv}").}
+\item{trained}{output from \code{\link[caret]{train}} call (if \code{ctr$type =} "\code{cv}"). There is no such
+output if the control parameters \code{alphas} and \code{lambdas} both specify one value.}
+\item{ic}{a \code{list} composed of two elements: under \code{"criterion"}, the type of information criterion used in the
+calibration, and under \code{"matrix"}, a \code{matrix} of all information criterion values for \code{alphas} as rows
+and the respective lambda values as columns (if \code{ctr$type !=} "\code{cv}"). Any \code{NA} value in the latter
+element means the specific information criterion could not be computed.}
 \item{dates}{sample reference dates as a two-element \code{character} vector, being the earliest and most recent date from
 the \code{sentomeasures} object accounted for in the estimation window.}
-\item{nVar}{the sum of the number of sentiment measures and other explanatory variables inputted.}
+\item{nVar}{a vector of size two, with respectively the number of sentiment measures, and the number of other explanatory
+variables inputted.}
 \item{discarded}{a named \code{logical} vector of length equal to the number of sentiment measures, in which \code{TRUE}
 indicates that the particular sentiment measure has not been considered in the regression process. A sentiment measure is
-not considered when it is a duplicate of another, or when at least 25\% of the observations are equal to zero.}
+not considered when it is a duplicate of another, or when at least 50\% of the observations are equal to zero.}
 
 If \code{ctr$do.iter = TRUE}, a \code{sentomodeliter} object which is a \code{list} containing:
 \item{models}{all sparse regressions, i.e. separate \code{sentomodel} objects as above, as a \code{list} with as names the
@@ -49,20 +52,18 @@ zero is considered as a positive; in percentage points), "\code{accuracy}" (prop
 of a logistic regression; in percentage points), and each's respective individual values in the sample. Directional accuracy
 is measured by comparing the change in the realized response with the change in the prediction between two consecutive time
 points (omitting the very first prediction, resulting in \code{NA}). Only the relevant performance statistics are given
-depending on the type of regression. Dates are as in the \code{"models"} output element, i.e. from the perspective of the
+depending on the type of regression. Dates are as in the \code{"models"} output element, i.e., from the perspective of the
 sentiment measures.}
 }
 \description{
 Linear or nonlinear penalized regression of any dependent variable on the wide number of sentiment measures and
 potentially other explanatory variables. Either performs a regression given the provided variables at once, or computes
-regressions sequentially for a given sample size over a longer time horizon, with associated one-step ahead prediction
-performance metrics.
+regressions sequentially for a given sample size over a longer time horizon, with associated prediction performance metrics.
 }
 \details{
 Models are computed using the elastic net regularization as implemented in the \pkg{glmnet} package, to account for
-the multidimensionality of the sentiment measures. Additional explanatory variables are not subject to shrinkage. Independent
-variables are normalized in the regression process, but coefficients are returned in their original space. For a helpful
-introduction to \pkg{glmnet}, we refer to their
+the multidimensionality of the sentiment measures. Independent variables are normalized in the regression process, but
+coefficients are returned in their original space. For a helpful introduction to \pkg{glmnet}, we refer to their
 \href{https://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html#lin}{vignette}. The optimal elastic net parameters
 \code{lambda} and \code{alpha} are calibrated either through a to specify information criterion or through
 cross-validation (based on the "rolling forecasting origin" principle, using the \code{\link[caret]{train}} function).
@@ -71,48 +72,53 @@ for a logistic model. We suppress many of the details that can be supplied to th
 \code{\link[caret]{train}} functions we rely on, for the sake of user-friendliness.
 }
 \examples{
+\dontrun{
 data("usnews", package = "sentometrics")
 data("list_lexicons", package = "sentometrics")
 data("list_valence_shifters", package = "sentometrics")
 data("epu", package = "sentometrics")
 
+set.seed(505)
+
 # construct a sentomeasures object to start with
 corpusAll <- sento_corpus(corpusdf = usnews)
-corpus <- quanteda::corpus_subset(corpusAll, date >= "2004-01-01" & date < "2014-10-01")
-l <- setup_lexicons(list_lexicons[c("LM_en", "HENRY_en")])
-ctr <- ctr_agg(howWithin = "tf-idf", howDocs = "proportional",
+corpus <- quanteda::corpus_subset(corpusAll, date >= "2004-01-01")
+l <- sento_lexicons(list_lexicons[c("LM_en", "HENRY_en")])
+ctr <- ctr_agg(howWithin = "counts", howDocs = "proportional",
                howTime = c("equal_weight", "linear"),
                by = "month", lag = 3)
 sentomeasures <- sento_measures(corpus, l, ctr)
 
 # prepare y and other x variables
-y <- epu[epu$date >= sentomeasures$measures$date[1], ]$index
+y <- epu[epu$date \%in\% get_dates(sentomeasures), "index"]
 length(y) == nobs(sentomeasures) # TRUE
 x <- data.frame(runif(length(y)), rnorm(length(y))) # two other (random) x variables
 colnames(x) <- c("x1", "x2")
 
-\dontrun{
 # a linear model based on the Akaike information criterion
 ctrIC <- ctr_model(model = "gaussian", type = "AIC", do.iter = FALSE, h = 4,
                    do.difference = TRUE)
 out1 <- sento_model(sentomeasures, y, x = x, ctr = ctrIC)
 
 # attribution and prediction as post-analysis
-attributions1 <- retrieve_attributions(out1, sentomeasures,
-                                       refDates = sentomeasures$measures$date[20:25])
-plot_attributions(attributions1, "features")
+attributions1 <- attributions(out1, sentomeasures,
+                              refDates = get_dates(sentomeasures)[20:25])
+plot(attributions1, "features")
 
 nx <- nmeasures(sentomeasures) + ncol(x)
-newx <- runif(nx) * cbind(sentomeasures$measures[, -1], x)[30:40, ]
-preds <- predict(out1, newx = as.matrix(newx), type = "link")}
+newx <- runif(nx) * cbind(get_measures(sentomeasures)[, -1], x)[30:40, ]
+preds <- predict(out1, newx = as.matrix(newx), type = "link")
 
-# an iterative out-of-sample analysis, parallelized
+# an iterative out-of-sample analysis, parallelised
 ctrIter <- ctr_model(model = "gaussian", type = "BIC", do.iter = TRUE, h = 3,
                      oos = 2, alphas = c(0.25, 0.75), nSample = 75, nCore = 2)
 out2 <- sento_model(sentomeasures, y, x = x, ctr = ctrIter)
 summary(out2)
 
-\dontrun{
+# plot predicted vs. realized values
+p <- plot(out2)
+p
+
 # a cross-validation based model, parallelised
 cl <- parallel::makeCluster(2)
 doParallel::registerDoParallel(cl)
@@ -121,10 +127,11 @@ ctrCV <- ctr_model(model = "gaussian", type = "cv", do.iter = FALSE,
                    testWindow = 10, oos = 0, do.progress = TRUE)
 out3 <- sento_model(sentomeasures, y, x = x, ctr = ctrCV)
 parallel::stopCluster(cl)
+foreach::registerDoSEQ()
 summary(out3)
 
 # a cross-validation based model for a binomial target
-yb <- epu[epu$date >= sentomeasures$measures$date[1], ]$above
+yb <- epu[epu$date \%in\% get_dates(sentomeasures), "above"]
 ctrCVb <- ctr_model(model = "binomial", type = "cv", do.iter = FALSE,
                     h = 0, alphas = c(0.10, 0.50, 0.90), trainWindow = 70,
                     testWindow = 10, oos = 0, do.progress = TRUE)
@@ -133,8 +140,7 @@ summary(out4)}
 
 }
 \seealso{
-\code{\link{ctr_model}}, \code{\link[glmnet]{glmnet}}, \code{\link[caret]{train}},
-\code{\link{retrieve_attributions}}
+\code{\link{ctr_model}}, \code{\link[glmnet]{glmnet}}, \code{\link[caret]{train}}, \code{\link{attributions}}
 }
 \author{
 Samuel Borms, Keven Bluteau

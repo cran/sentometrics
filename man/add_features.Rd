@@ -4,8 +4,8 @@
 \alias{add_features}
 \title{Add feature columns to a (sento)corpus object}
 \usage{
-add_features(corpus, featuresdf = NULL, keywords = NULL, do.binary = TRUE,
-  do.regex = FALSE)
+add_features(corpus, featuresdf = NULL, keywords = NULL,
+  do.binary = TRUE, do.regex = FALSE)
 }
 \arguments{
 \item{corpus}{a \code{sentocorpus} object created with \code{\link{sento_corpus}}, or a \pkg{quanteda}
@@ -22,7 +22,7 @@ keyword, no column is added. The \code{list} names are used as the names of the 
 instead of keywords, one can also directly use a single regex expression to define a new feature (cf. the details section).}
 
 \item{do.binary}{a \code{logical}, cf. argument \code{keywords}. If \code{do.binary = FALSE}, the counts are normalized
-between 0 and 1,}
+between 0 and 1.}
 
 \item{do.regex}{a \code{logical} vector equal in length to the number of elements in the \code{keywords} argument
 \code{list}, or a single value if it applies to all. It should be set to \code{TRUE} at those positions where a single
@@ -33,26 +33,25 @@ An updated \code{corpus} object.
 }
 \description{
 Adds new feature columns, either user-supplied or based on keyword(s)/regex pattern search, to
-a provided \code{sentocorpus} or \pkg{quanteda} \code{\link[quanteda]{corpus}} object.
+a provided \code{sentocorpus} or a \pkg{quanteda} \code{\link[quanteda]{corpus}} object.
 }
 \details{
 If a provided feature name is already part of the corpus, it will be replaced. The \code{featuresdf} and
-\code{keywords} arguments can be provided at the same time, or only one of them, leaving the other at \code{NULL}.
-The \code{do.regex} argument points to the corresponding elements in \code{keywords}. For \code{FALSE}, we transform
-the keywords into a simple regex expression, involving \code{"\\b"} for exact word boundary matching and (if multiple
-keywords) \code{|} as OR operator. The elements associated to \code{TRUE} do not undergo the transformation, and are
-evaluated as given, if the corresponding keywords vector consists of only one expression. Scaling between 0 and 1
-is performed via the min-max normalization, per column. Binary features can be used as a mechanism to select the
-texts which have to be integrated in the respective feature-based sentiment measure(s), but the
-within-document aggregation still considers the entire corpus in case of \code{"tf-idf"}, and the option
-\code{do.ignoreZeros} should be set to \code{TRUE} (see \code{\link{ctr_agg}}). Because of this (implicit) selection
-that can be performed, having complementary features (e.g., \code{"economy"} and \code{"noneconomy"}) makes sense.
+\code{keywords} arguments can be provided at the same time, or only one of them, leaving the other at \code{NULL}. We use
+the \pkg{stringi} package for searching the keywords. The \code{do.regex} argument points to the corresponding elements
+in \code{keywords}. For \code{FALSE}, we transform the keywords into a simple regex expression, involving \code{"\\b"} for
+exact word boundary matching and (if multiple keywords) \code{|} as OR operator. The elements associated to \code{TRUE} do
+not undergo this transformation, and are evaluated as given, if the corresponding keywords vector consists of only one
+expression. For a large corpus and/or complex regex patterns, this function may require some patience. Scaling between 0
+and 1 is performed via min-max normalization, per column.
 }
 \examples{
 data("usnews", package = "sentometrics")
 
+set.seed(505)
+
 # construct a corpus and add (a) feature(s) to it
-corpus <- sento_corpus(corpusdf = usnews)
+corpus <- quanteda::corpus_sample(sento_corpus(corpusdf = usnews), 500)
 corpus1 <- add_features(corpus,
                         featuresdf = data.frame(random = runif(quanteda::ndoc(corpus))))
 corpus2 <- add_features(corpus,
@@ -62,9 +61,9 @@ corpus3 <- add_features(corpus,
                         do.binary = FALSE)
 corpus4 <- add_features(corpus,
                         featuresdf = data.frame(all = 1),
-                        keywords = list(pres1 = c("Obama|US [p|P]resident"),
-                                        pres2 = c("\\\\bObama\\\\b|\\\\bUS president\\\\b"),
-                                        war = c("war")),
+                        keywords = list(pres1 = "Obama|US [p|P]resident",
+                                        pres2 = "\\\\bObama\\\\b|\\\\bUS president\\\\b",
+                                        war = "war"),
                         do.regex = c(TRUE, TRUE, FALSE))
 
 sum(corpus3$documents$pres) == sum(corpus4$documents$pres2) # TRUE
