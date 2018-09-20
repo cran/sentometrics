@@ -2,7 +2,7 @@ Package: sentometrics
 Type: Package
 Title: An Integrated Framework for Textual Sentiment Time Series
         Aggregation and Prediction
-Version: 0.5
+Version: 0.5.1
 Authors@R: c(person("David", "Ardia", email = "david.ardia@unine.ch", role = c("aut")),
   person("Keven", "Bluteau", email = "keven.bluteau@unine.ch", role = c("aut")),
   person("Samuel", "Borms", email = "samuel.borms@unine.ch", role = c("aut", "cre")),
@@ -27,6 +27,6 @@ LinkingTo: Rcpp, RcppArmadillo, RcppParallel
 RoxygenNote: 6.1.0
 SystemRequirements: GNU make
 NeedsCompilation: yes
-Packaged: 2018-09-18 17:28:02 UTC; gebruiker
+Packaged: 2018-09-20 06:38:37 UTC; gebruiker
 Repository: CRAN
-Date/Publication: 2018-09-18 20:40:03 UTC
+Date/Publication: 2018-09-20 17:10:03 UTC
