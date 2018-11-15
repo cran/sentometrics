@@ -18,8 +18,7 @@
 #' \code{\link{sento_measures}}, \code{\link{peakdocs}}, and a series of \code{measures_xyz}, generic
 #' and extractor functions
 #' \item Sparse modelling: \code{\link{ctr_model}}, \code{\link{sento_model}}
-#' \item Prediction and post-modelling analysis: \code{\link{predict.sentomodel}}, \code{\link{attributions}},
-#' \code{\link{get_loss_data}}
+#' \item Prediction and post-modelling analysis: \code{\link{predict.sentomodel}}, \code{\link{attributions}}
 #' }
 #'
 #' @section Update:
@@ -28,9 +27,9 @@
 #' @note Please cite the package in publications. Use \code{citation("sentometrics")}.
 #'
 #' @references Ardia, Bluteau and Boudt (2018). ``Questioning the news about economic growth: Sparse forecasting using
-#' thousands of news-based sentiment values''. \emph{Working paper}, \url{http://dx.doi.org/10.2139/ssrn.2976084}.
+#' thousands of news-based sentiment values''. \emph{Working paper}, \url{https://doi.org/10.2139/ssrn.2976084}.
 #' @references Ardia, Bluteau, Borms and Boudt (2018). ``The R package sentometrics to compute, aggregate and
-#' predict with textual sentiment''. \emph{Working paper}, \url{http://dx.doi.org/10.2139/ssrn.3067734}.
+#' predict with textual sentiment''. \emph{Working paper}, \url{https://doi.org/10.2139/ssrn.3067734}.
 "_PACKAGE"
 
 #' Built-in lexicons
@@ -131,9 +130,9 @@
 #'   \item date. Date as \code{"yyyy-mm-dd"}.
 #'   \item texts. Texts in \code{character} format.
 #'   \item wsj. Equals 1 if the article comes from The Wall Street Journal.
-#'   \item wapo. Equals 1 if the article comes from The Washington Post (complementary to 'wsj').
+#'   \item wapo. Equals 1 if the article comes from The Washington Post (complementary to `wsj').
 #'   \item economy. Equals 1 if the article is relevant to the U.S. economy.
-#'   \item noneconomy. Equals 1 if the article is not relevant to the U.S. economy (complementary to 'economy').
+#'   \item noneconomy. Equals 1 if the article is not relevant to the U.S. economy (complementary to `economy').
 #' }
 #'
 #' @usage data("usnews")

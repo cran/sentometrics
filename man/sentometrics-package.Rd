@@ -27,8 +27,7 @@ Please cite the package in publications. Use \code{citation("sentometrics")}.
 \code{\link{sento_measures}}, \code{\link{peakdocs}}, and a series of \code{measures_xyz}, generic
 and extractor functions
 \item Sparse modelling: \code{\link{ctr_model}}, \code{\link{sento_model}}
-\item Prediction and post-modelling analysis: \code{\link{predict.sentomodel}}, \code{\link{attributions}},
-\code{\link{get_loss_data}}
+\item Prediction and post-modelling analysis: \code{\link{predict.sentomodel}}, \code{\link{attributions}}
 }
 }
 
@@ -39,10 +38,10 @@ The development version of the package resides at \url{https://github.com/sborms
 
 \references{
 Ardia, Bluteau and Boudt (2018). ``Questioning the news about economic growth: Sparse forecasting using
-thousands of news-based sentiment values''. \emph{Working paper}, \url{http://dx.doi.org/10.2139/ssrn.2976084}.
+thousands of news-based sentiment values''. \emph{Working paper}, \url{https://doi.org/10.2139/ssrn.2976084}.
 
 Ardia, Bluteau, Borms and Boudt (2018). ``The R package sentometrics to compute, aggregate and
-predict with textual sentiment''. \emph{Working paper}, \url{http://dx.doi.org/10.2139/ssrn.3067734}.
+predict with textual sentiment''. \emph{Working paper}, \url{https://doi.org/10.2139/ssrn.3067734}.
 }
 \seealso{
 Useful links:

@@ -1,63 +1,7 @@
 
-############################################################
-################# UTILITY/HELPER FUNCTIONS #################
-############################################################
-
-# #' @importFrom foreach %dopar%
-# include_valence <- function(corpus, val, valId, nCore = 1) {
-#   modify_texts <- function(texts, val, valId = c("NOT_", "VERY_", "HARDLY_")) {
-#     val[, identifier := sapply(t, function(j) if (j == 1) valId[1] else if (j == 2) valId[2] else valId[3])]
-#     all <- val[, c("x", "identifier")]
-#     texts <- lapply(1:nrow(all), function(i) {
-#       texts <<- stringi::stri_replace_all(texts, all[i, identifier], regex = paste0("\\b", all[i, x], " \\b"))
-#     })[[nrow(all)]]
-#     return(texts)
-#   }
-#   cat("Modify corpus to account for valence words... ") # replaces valence words in texts and combines into bigrams
-#   texts <- quanteda::texts(corpus)
-#   if (nCore > 1) {
-#     cl <- parallel::makeCluster(min(parallel::detectCores() - 1, nCore))
-#     doParallel::registerDoParallel(cl)
-#     N <- length(texts)
-#     blocks <- seq(0, N + 1, by = floor(N/nCore))
-#     blocks[length(blocks)] <- N
-#     textsNew <- foreach::foreach(i = 1:(length(blocks) - 1), .combine = c, .export = c(":=")) %dopar% {
-#       modify_texts(texts = texts[(blocks[i] + 1):blocks[i + 1]], val = val)
-#     }
-#     quanteda::texts(corpus) <- textsNew
-#     parallel::stopCluster(cl)
-#     foreach::registerDoSEQ()
-#   } else {
-#     quanteda::texts(corpus) <- modify_texts(texts, val)
-#   }
-#   cat("Done.", "\n")
-#   return(corpus)
-# }
-
-# negate <- function(lexicon, s = -1) {
-#   lexicon$x <- paste0("NOT_", lexicon$x); lexicon$y <- s * (lexicon$y)
-#   return(lexicon)
-# }
-# amplify <- function(lexicon, s = 2) {
-#   lexicon$x <- paste0("VERY_", lexicon$x); lexicon$y <- s * (lexicon$y)
-#   return(lexicon)
-# }
-# deamplify <- function(lexicon, s = 0.5) {
-#   lexicon$x <- paste0("HARDLY_", lexicon$x); lexicon$y <- s * (lexicon$y)
-#   return(lexicon)
-# }
-#
-# expand_lexicons <- function(lexicons, types = c(1, 2, 3), scores = c(-1, 2, 0.5)) {
-#   funcs <- list(negate, amplify, deamplify) # types: 1, 2, 3
-#   lexiconsExp <- lapply(lexicons, function(l) {
-#     out <- lapply(c(0, types), function(x) {
-#       if (x == 0) return(l)
-#       else {f = funcs[[x]]; return(f(l, scores[[x]]))}
-#     })
-#     return(rbindlist(out))
-#   })
-#   return(lexiconsExp) # expanded lexicons (original + copied and negated/amplified/deamplified words and scores)
-# }
+###########################################################
+#################### UTILITY FUNCTIONS ####################
+###########################################################
 
 #' Compute exponential weighting curves
 #'
@@ -132,7 +76,7 @@ weights_almon <- function(n, orders = 1:3, do.inverse = TRUE, do.normalize = TRU
   return(as.data.frame(almons)) # first row is most lagged value
 }
 
-#' Compute beta weighting curves
+#' Compute Beta weighting curves
 #'
 #' @description Computes Beta weighting curves as in Ghysels, Sinko and Valkanov (2007). Handy to self-select specific
 #' time aggregation weighting schemes for input in \code{\link{ctr_agg}} using the \code{weights} argument.
@@ -148,7 +92,8 @@ weights_almon <- function(n, orders = 1:3, do.inverse = TRUE, do.normalize = TRU
 #' @param a a \code{numeric} as the first parameter (cf., \emph{a}).
 #' @param b a \code{numeric} as the second parameter (cf., \emph{b}).
 #'
-#' @return A \code{data.frame} of beta weighting curves per combination of \code{a} and \code{b}.
+#' @return A \code{data.frame} of beta weighting curves per combination of \code{a} and \code{b}. If \code{n = 1},
+#' all weights are set to 1.
 #'
 #' @seealso \code{\link{ctr_agg}}
 #'
@@ -162,21 +107,24 @@ weights_beta <- function(n, a = 1:4, b = 1:4) {
   vals <- (1:n) / n
   betas <- data.frame(matrix(nrow = n, ncol = length(a) * length(b)))
   colnames(betas) <- paste0("beta", paste0(rep(a, rep(length(b), length(a))), b))
-  k <- 1
-  for (i in 1:length(a)) {
-    for(j in 1:length(b)) {
-      aa <- a[i]
-      bb <- b[j]
-      beta <- (vals^(aa - 1) * (1 - vals)^(bb - 1) * gamma(aa + bb)) / (gamma(aa) * gamma(bb))
-      betas[, k] <- beta/sum(beta)
-      k <- k + 1
+  if (n == 1) betas[, ] <- 1
+  else {
+    k <- 1
+    for (i in 1:length(a)) {
+      for(j in 1:length(b)) {
+        aa <- a[i]
+        bb <- b[j]
+        beta <- (vals^(aa - 1) * (1 - vals)^(bb - 1) * gamma(aa + bb)) / (gamma(aa) * gamma(bb))
+        betas[, k] <- beta/sum(beta)
+        k <- k + 1
+      }
     }
   }
   return(as.data.frame(betas))
 }
 
 setup_time_weights <- function(lag, how, ...) {
-  dots <- tryCatch(list(...)[[1]], # extract list from list of list (... a list to match with functions in sentomeasures.R)
+  dots <- tryCatch(list(...)[[1]], # extract list from list of list (if ... is a list)
                    error = function(x) list(...)) # if ... is empty
   if (!all(how %in% get_hows()$time)) stop("Please select an appropriate aggregation 'how'.")
   weights <- data.frame(row.names = 1:lag)
@@ -288,20 +236,21 @@ align_variables <- function(y, sentomeasures, x, h, difference, i = 1, nSample =
 
 clean_panel <- function(x, nx, threshold = 0.50) {
 
-  # discards columns from panel of explanatory variables based on a few simple rules
+  # discards columns from panel of sentiment variables based on a few simple rules
   # useful to simplify (to some extent) the penalized variables regression (cf. 'exclude')
 
-  if (nx != 0) { # do not perform cleaning on last nx variables
+  if (nx != 0) { # do not perform cleaning on non-sentiment variables not to shrink
     start <- ncol(x) - nx + 1
     end <- ncol(x)
-    xx <- x[, -(start:end)] # drop non-sentiment variables if no shrinkage imposed on these variables
+    xx <- x[, -(start:end)]
   } else xx <- x
   xx[is.na(xx)] <- 0 # check
   duplics <- duplicated(as.matrix(xx), MARGIN = 2) # duplicated columns
   manyZeros <- (colSums(as.matrix(xx) == 0, na.rm = TRUE) / nrow(xx)) > threshold # columns with too many zeros
   toDiscard <- duplics | manyZeros
-  if (ncol(xx) == 1) stop("No explanatory variables retained after cleaning: too many duplicated columns and/or zeros.")
-  else {
+  if (ncol(xx) == 1) {
+    stop("No explanatory variables retained after cleaning: too many duplicated columns and/or zeros.")
+  } else {
     if (nx != 0) {
       xNew <- cbind(xx[, !toDiscard], x[, start:end])
       colnames(xNew) <- c(names(which(!toDiscard)), colnames(x[, start:end, drop = FALSE]))
@@ -396,45 +345,6 @@ compute_stats <- function(sentomeasures) {
   return(stats)
 }
 
-# compute_df_R <- function(alpha, beta, lambda, x) {
-#
-#   # elastic net degrees-of-freedom estimator (Tibshirani and Taylor, 2012)
-#
-#   x <- scale(x) # scale x first
-#   dfA <- lapply(1:length(lambda), function(df) {
-#     A <- which(beta[, df] != 0)
-#     if (alpha == 1) {return(length(A))} # df equal to non-zero parameters if LASSO (alpha = 1)
-#     if (length(A) == 0) {return(NA)}
-#     I <- diag(1, ncol = length(A), nrow = length(A))
-#     xA <- as.matrix(x[, A])
-#     estimate <- tryCatch(sum(diag(xA %*% solve((t(xA) %*% xA + (1 - alpha) * lambda[df] * I)) %*% t(xA))),
-#                          error = function(x) {NA}) # to handle rare matrix inversion problems
-#     return(estimate)
-#   })
-#   return(unlist(dfA))
-# }
-
-# compute_IC <- function(reg, y, x, alpha, ic, family) {
-#   beta <- reg$beta
-#   lambda <- reg$lambda
-#   if (family == "gaussian") type <- "link"
-#   else stop("Calibration via information criteria to implement for 'binomial' and 'multinomial'.")
-#   yEst <- stats::predict(reg, newx = x, type = type)
-#   # dfA <- compute_df_R(alpha, beta, lambda, x)
-#   xScaled <- scale(x)
-#   xA <- lapply(1:length(lambda), function(i) return(as.matrix(xScaled[, which(beta[, i] != 0)])))
-#   dfA <- compute_df(alpha, lambda, xA)
-#   RSS <- apply(yEst, 2, function(est) return(sum((y - est)^2)))
-#   # sigma2 <- RSS[length(RSS)] / (nrow(y) - dfA[length(RSS)])
-#   sigma2 <- mean(RSS, na.rm = TRUE) / (nrow(y) - mean(dfA, na.rm = TRUE)) # mean, else bias towards high lambda and alpha
-#   if (ic == "BIC")
-#     return(compute_BIC(y, dfA, RSS, sigma2))
-#   else if (ic == "AIC")
-#     return(compute_AIC(y, dfA, RSS, sigma2))
-#   else if (ic == "Cp")
-#     return(compute_Cp(y, dfA, RSS, sigma2))
-# }
-
 compute_BIC <- function(y, dfA, RSS, sigma2) { # BIC-like criterion
   BIC <- RSS/(nrow(y) * sigma2) + (log(nrow(y))/nrow(y)) * dfA
   return(BIC)
@@ -481,25 +391,6 @@ check_nCore <- function(nCore) {
   nCore
 }
 
-# #' @importFrom foreach %dopar%
-# tokenise_texts_parallel <- function(x, nCore) {
-#   cl <- parallel::makeCluster(min(parallel::detectCores(), nCore))
-#   doParallel::registerDoParallel(cl)
-#   N <- ifelse(inherits(x, "corpus"), quanteda::ndoc(x), length(x))
-#   blocks <- seq(0, N + 1, by = floor(N/nCore))
-#   blocks[length(blocks)] <- N
-#   tok <- foreach::foreach(i = 1:(length(blocks) - 1), .combine = '+') %dopar% {
-#     tokBit <- quanteda::tokens(
-#       x[(blocks[i] + 1):blocks[i + 1]], what = "fasterword", ngrams = 1,
-#       remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE
-#     )
-#     return(tokBit)
-#   }
-#   parallel::stopCluster(cl)
-#   foreach::registerDoSEQ()
-#   tok
-# }
-
 nonzero_coeffs <- function(reg) {
   coeffs <- stats::coef(reg)
   df <- as.data.frame(as.matrix(coeffs))
@@ -510,12 +401,6 @@ nonzero_coeffs <- function(reg) {
   colnames(nz) <- NULL
   return(nz)
 }
-
-# pdf_manual <- function(wd) {
-#   setwd(wd)
-#   shell('R CMD Rd2pdf --encoding=UTF-8 sentometrics')
-#   setwd(paste0(wd, "/sentometrics"))
-# }
 
 # this function is directly taken from the sentimentr package
 # (the as_key() function) but copied to bring R version
@@ -547,6 +432,7 @@ sento_as_key <- function (x, ...) {
     stop("Column 1 must be character.")
   if (!is.numeric(x[[2]]))
     stop("Column 2 must be numeric.")
+  x[[2]] <- as.numeric(x[[2]])
   colnames(x) <- c("x", "y")
   data.table::setDT(x)
   x <- x[order(x), ]
@@ -579,34 +465,14 @@ get_names_lags <- function(nLags) {
                                                   paste0(c(rep("0", k - nchar(n)), n), collapse = ""))))
 }
 
-check_sentiment_format <- function(sentiment) {
-  errMessage <- "The 'sentiment' input is not appropriate. It should be computed from a 'sentocorpus' object."
-  if (!is.list(sentiment)) {
-    stop(errMessage)
-  } else if (!all(names(sentiment) %in% c("sentiment", "features", "lexicons", "howWithin"))) {
-      stop(errMessage)
-  } else {
-    s <- sentiment[["sentiment"]]
-    if (!all(colnames(s)[1:3] %in% c("id", "date", "word_count")))
-      stop(errMessage)
-    else if (ncol(s) != 3 + length(sentiment$features) * length(sentiment$lexicons))
-      stop(errMessage)
-    else if (!inherits(s[["id"]], "character"))
-      stop(errMessage)
-    else if (!inherits(s[["date"]], "Date"))
-      stop(errMessage)
-    else if (!all(sapply(3:ncol(s), function(i) inherits(s[[i]], "numeric"))))
-      stop(errMessage)
-  }
-}
-
 plot_theme <- function(legendPos) { # plotting specifications (border and grid)
   theme(
     legend.title = element_blank(),
     legend.position = legendPos,
     panel.background = element_rect(colour = "black", size = 0.35),
     panel.grid.major = element_line(colour = "grey95", size = 0.10),
-    panel.grid.minor = element_line(colour = "grey95", size = 0.10)
+    panel.grid.minor = element_line(colour = "grey95", size = 0.10),
+    plot.margin = unit(c(0.20, 0.40, 0.20, 0.20), "cm")
   )
 }
 

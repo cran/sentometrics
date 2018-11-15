@@ -2,7 +2,7 @@ Package: sentometrics
 Type: Package
 Title: An Integrated Framework for Textual Sentiment Time Series
         Aggregation and Prediction
-Version: 0.5.1
+Version: 0.5.5
 Authors@R: c(person("David", "Ardia", email = "david.ardia@unine.ch", role = c("aut")),
   person("Keven", "Bluteau", email = "keven.bluteau@unine.ch", role = c("aut")),
   person("Samuel", "Borms", email = "samuel.borms@unine.ch", role = c("aut", "cre")),
@@ -20,13 +20,13 @@ URL: https://github.com/sborms/sentometrics
 Encoding: UTF-8
 LazyData: true
 Suggests: covr, doParallel, e1071, parallel, randomForest, testthat
-Imports: abind, caret, compiler, foreach, ggplot2, glmnet, ISOweek,
-        quanteda, Rcpp (>= 0.12.13), RcppRoll, RcppParallel, stats,
-        stringi, utils, zoo
+Imports: caret, compiler, foreach, ggplot2, glmnet, ISOweek, quanteda,
+        Rcpp (>= 0.12.13), RcppRoll, RcppParallel, stats, stringi,
+        utils
 LinkingTo: Rcpp, RcppArmadillo, RcppParallel
 RoxygenNote: 6.1.0
 SystemRequirements: GNU make
 NeedsCompilation: yes
-Packaged: 2018-09-20 06:38:37 UTC; gebruiker
+Packaged: 2018-11-15 14:11:09 UTC; gebruiker
 Repository: CRAN
-Date/Publication: 2018-09-20 17:10:03 UTC
+Date/Publication: 2018-11-15 14:40:02 UTC

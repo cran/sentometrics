@@ -1,5 +1,5 @@
 
-attribution_docs <- function(sentomeasures, s, sentDates, seqDates, W, cols, refDates, coeffs, timeNames) {
+attributions_docs <- function(sentomeasures, s, sentDates, seqDates, W, cols, refDates, coeffs, tNames) {
   B <- sentomeasures$attribWeights[["B"]]
   nLags <- nrow(B)
   attribsDocs <- lapply(refDates, function(t) {
@@ -10,7 +10,7 @@ attribution_docs <- function(sentomeasures, s, sentDates, seqDates, W, cols, ref
     sents <- s[date %in% datesIn, ]
     sentWeighted <- sents[, -1:-3] * docWeights # drop id, date and word_count columns
     n <- sents[, list(count = .N), by = list(date)] # number of individual occurrences of the dates
-    sentFull <- lapply(timeNames, function(b) {
+    sentFull <- lapply(tNames, function(b) {
       coeffsIn <- coeffs[stringi::stri_detect(cols, regex = paste0("\\b", b, "\\b"))] # coefficients for weighting scheme
       sel <- sapply(stringi::stri_split(names(coeffsIn), regex = "--"), function(n) paste0(n[1:2], collapse = "--"))
       timeWeights <- rep(B[B$date %in% n$date, b], n$count) # respective lag weights per document
@@ -26,8 +26,8 @@ attribution_docs <- function(sentomeasures, s, sentDates, seqDates, W, cols, ref
   return(attribsDocs)
 }
 
-attribution_lags <- function(s, sentDates, seqDates, W, cols, sentomeasures, measures, coeffs,
-                             attribsDocs, timeNames, do.normalize) {
+attributions_lags <- function(s, sentDates, seqDates, W, cols, sentomeasures, measures, coeffs,
+                              attribsDocs, tNames, do.normalize) {
   B <- sentomeasures$attribWeights$B
   nLags <- nrow(B)
   namesLags <- get_names_lags(nLags)
@@ -55,7 +55,7 @@ attribution_lags <- function(s, sentDates, seqDates, W, cols, sentomeasures, mea
         sents <- s[date %in% dateLatest, ]
         sentWeighted <- colSums(sents[, -1:-3] * docWeights) # recreate sentiment measures as before time smoothing
         n <- sents[, list(count = .N), by = list(date)]
-        sentFull <- lapply(timeNames, function(b) {
+        sentFull <- lapply(tNames, function(b) {
           coeffsIn <- coeffs[stringi::stri_detect(cols, regex = paste0("\\b", b, "\\b"))]
           sel <- sapply(stringi::stri_split(names(coeffsIn), regex = "--"), function(n) paste0(n[1:2], collapse = "--"))
           attr <- coeffsIn * B[lagsMissing[j], b] * sentWeighted[sel]
@@ -85,8 +85,8 @@ attribution_lags <- function(s, sentDates, seqDates, W, cols, sentomeasures, mea
   return(attribsLag)
 }
 
-attribution_dims <- function(sentomeasures, measures, cols, refDates, loc, coeffs,
-                             do.normalize, dimNames, missingNames, type) {
+attributions_dims <- function(sentomeasures, measures, cols, refDates, loc, coeffs,
+                              do.normalize, dimNames, missingNames, type) {
   attribsDim <- lapply(dimNames, function(x) {
     sel <- cols[stringi::stri_detect(cols, regex = paste0("\\b", x, "\\b"))]
     coeffsIn <- data.table(matrix(coeffs[sel], nrow = length(loc), ncol = length(coeffs[sel]), byrow = TRUE))
@@ -106,35 +106,30 @@ attribution_dims <- function(sentomeasures, measures, cols, refDates, loc, coeff
   return(attribsDim)
 }
 
-.attributions.sentomodel <- function(model, sentomeasures, do.normalize = FALSE,
-                                              refDates = NULL, factor = NULL) {
+.attributions.sentomodel <- function(model, sentomeasures, do.lags = TRUE, do.normalize = FALSE,
+                                     refDates = NULL, factor = NULL) {
   check_class(sentomeasures, "sentomeasures")
   stopifnot(is.logical(do.normalize))
 
   sentomodel <- model
 
-  # check if sentiment measures sample used for sentomodel estimation coincides with measures in input sentomeasures
-  discarded <- sentomodel$discarded[1:sentomodel$nVar[1]] # we drop other x variables (present if do.shrinkage.x = TRUE)
-  xSent <- sentomodel$x[, 1:sum(!discarded)] # get sentiment variables
-  n <- nmeasures(sentomeasures)
+  # get appropriate sentiment measures from sentomeasures input object
+  discarded <- sentomodel$discarded
   measures <- get_measures(sentomeasures)[, c(TRUE, !discarded), with = FALSE]
+
+  # set dates at which to do attribution
   sampleDates <- sentomodel$dates
-  measuresSample <- measures[date >= sampleDates[1] & date <= sampleDates[2], ]
-  if (nrow(measuresSample) != nrow(xSent))
-    stop("The input 'sentomeasures' object does not coincide with the sentiment measures used in the sentomodel object.")
-  if (!all(xSent == measuresSample[, -1]))
-    stop("The input 'sentomeasures' object does not coincide with the sentiment measures used in the sentomodel object.")
   if (is.null(refDates)) {
-    refDates <- measuresSample$date # take in-sample dates
+    refDates <- measures[date >= sampleDates[1] & date <= sampleDates[2], ][["date"]] # take in-sample dates
   } else {
     refDates <- sort(as.Date(refDates))
     if (min(refDates) < sampleDates[1])
       stop("The earliest date in 'refDates' is earlier than the first estimation sample date.")
-    if (!all(refDates %in% measures$date))
+    if (!all(refDates %in% measures[["date"]]))
       stop("Not all 'refDates' are available in the textual sentiment time series.")
   }
 
-  # retrieve remaining necessary information from input objects
+  # retrieve remaining required information from input objects
   s <- sentomeasures$sentiment
   W <- sentomeasures$attribWeights[["W"]]
   loc <- which(measures$date %in% refDates)
@@ -174,39 +169,42 @@ attribution_dims <- function(sentomeasures, measures, cols, refDates, loc, coeff
 
   # calculate and assemble attributions
   attribsAll <- list(documents = NULL, lags = NULL, lexicons = NULL, features = NULL, time = NULL)
-  attribsDocs <- attribution_docs(sentomeasures, s, sentDates, seqDates, W, cols, refDates, coeffs, tNames)
+  attribsDocs <- attributions_docs(sentomeasures, s, sentDates, seqDates, W, cols, refDates, coeffs, tNames)
   attribsAll[["documents"]] <- attribsDocs
-  attribsAll[["lags"]] <- attribution_lags(s, sentDates, seqDates, W, cols, sentomeasures, measures, coeffs,
-                                           attribsDocs, tNames, do.normalize)
-  attribsAll[["lexicons"]] <- attribution_dims(sentomeasures, measures, cols, refDates, loc, coeffs, do.normalize,
-                                               lNames, lDel, "lexicons")
-  attribsAll[["features"]] <- attribution_dims(sentomeasures, measures, cols, refDates, loc, coeffs, do.normalize,
-                                               fNames, fDel, "features")
-  attribsAll[["time"]] <- attribution_dims(sentomeasures, measures, cols, refDates, loc, coeffs, do.normalize,
-                                           tNames, tDel, "time")
+  if (do.lags == TRUE) {
+    attribsAll[["lags"]] <- attributions_lags(s, sentDates, seqDates, W, cols, sentomeasures, measures, coeffs,
+                                              attribsDocs, tNames, do.normalize)
+  }
+  attribsAll[["lexicons"]] <- attributions_dims(sentomeasures, measures, cols, refDates, loc, coeffs, do.normalize,
+                                                lNames, lDel, "lexicons")
+  attribsAll[["features"]] <- attributions_dims(sentomeasures, measures, cols, refDates, loc, coeffs, do.normalize,
+                                                fNames, fDel, "features")
+  attribsAll[["time"]] <- attributions_dims(sentomeasures, measures, cols, refDates, loc, coeffs, do.normalize,
+                                            tNames, tDel, "time")
 
   class(attribsAll) <- c("attributions", class(attribsAll))
 
   return(attribsAll)
 }
 
-.attributions.sentomodeliter <- function(model, sentomeasures, do.normalize = FALSE,
-                                                  refDates = NULL, factor = NULL) {
+.attributions.sentomodeliter <- function(model, sentomeasures, do.lags = TRUE, do.normalize = FALSE,
+                                         refDates = NULL, factor = NULL) {
   stopifnot(is.logical(do.normalize))
 
   sentomodeliter <- model
 
-  refDates <- as.Date(names(sentomodeliter$models))
+  if (is.null(refDates)) refDates <- as.Date(names(sentomodeliter$models))
   attribsFull <- lapply(1:length(refDates), function(i) {
     date <- refDates[i]
     model <- sentomodeliter$models[[i]]
-    attribs <- attributions(model, sentomeasures, do.normalize = do.normalize, refDates = date, factor = factor)
+    attribs <- attributions(model, sentomeasures, do.lags = do.lags, do.normalize = do.normalize,
+                            refDates = date, factor = factor)
     return(attribs)
   })
 
   attribsAll <- list(documents = NULL, lags = NULL, lexicons = NULL, features = NULL, time = NULL)
   attribsAll[["documents"]] <- unlist(lapply(attribsFull, function(x) return(x[["documents"]])), recursive = FALSE)
-  attribsAll[["lags"]] <- rbindlist(lapply(attribsFull, function(x) return(x[["lags"]])))
+  if (do.lags == TRUE) attribsAll[["lags"]] <- rbindlist(lapply(attribsFull, function(x) return(x[["lags"]])))
   attribsAll[["lexicons"]] <- rbindlist(lapply(attribsFull, function(x) return(x[["lexicons"]])))
   attribsAll[["features"]] <- rbindlist(lapply(attribsFull, function(x) return(x[["features"]])))
   attribsAll[["time"]] <- rbindlist(lapply(attribsFull, function(x) return(x[["time"]])))
@@ -234,11 +232,13 @@ attributions.sentomodeliter <- compiler::cmpfun(.attributions.sentomodeliter)
 #' @details See \code{\link{sento_model}} for an elaborate modelling example including the calculation and plotting of
 #' attributions. The attribution for logistic models is represented in terms of log odds. For binomial models, it is
 #' calculated with respect to the last factor level or factor column. A \code{NULL} value for document-level attribution
-#' on a given date means that no documents are (directly) implicated for the associated prediction.
+#' on a given date means no documents are directly implicated in the associated prediction.
 #'
 #' @param model a \code{sentomodel} or \code{sentomodeliter} object created with \code{\link{sento_model}}.
 #' @param sentomeasures the \code{sentomeasures} object, as created with \code{\link{sento_measures}}, used to estimate
-#' the model from the first argument.
+#' the model from the first argument (make sure this is the case!).
+#' @param do.lags a \code{logical}, \code{TRUE} also computes the attribution to each time lag. For large time lags,
+#' this is time-consuming.
 #' @param do.normalize a \code{logical}, \code{TRUE} divides each element of every attribution vector at a given date by its
 #' L2-norm at that date, normalizing the values between -1 and 1. The document attributions are not normalized.
 #' @param refDates the dates (as \code{"yyyy-mm-dd"}) at which attribution is to be performed. These should be between the latest
@@ -251,14 +251,15 @@ attributions.sentomodeliter <- compiler::cmpfun(.attributions.sentomodeliter)
 #'
 #' @return A \code{list} of class \code{attributions}, with \code{"documents"}, \code{"lags"}, \code{"lexicons"},
 #' \code{"features"} and \code{"time"} as dimensions for which aggregation is computed. The last four dimensions are
-#' \code{data.table}s having a \code{"date"} column and the other columns the different components of the dimension, with the
-#' attributions as values. Document-level attribution is further decomposed into a \code{data.table} per date, with
-#' \code{"id"}, \code{"date"} and \code{"attrib"} columns.
+#' \code{data.table}s having a \code{"date"} column and the other columns the different components of the dimension, with
+#' the attributions as values. Document-level attribution is further decomposed into a \code{data.table} per date, with
+#' \code{"id"}, \code{"date"} and \code{"attrib"} columns. If \code{do.lags = FALSE}, the \code{"lags"} element is set
+#' to \code{NULL}.
 #'
 #' @seealso \code{\link{sento_model}}
 #'
 #' @export
-attributions <- function(model, sentomeasures, do.normalize = FALSE, refDates = NULL, factor = NULL) {
+attributions <- function(model, sentomeasures, do.lags = TRUE, do.normalize = FALSE, refDates = NULL, factor = NULL) {
   UseMethod("attributions", model)
 }
 
@@ -288,11 +289,13 @@ plot.attributions <- function(x, group = "features", ...) {
     stop("The 'group' argument should be either 'lags', 'lexicons', 'features' or 'time'.")
   attributions <- x
   attributions <- attributions[[group]]
+  if (group == "lags" && is.null(attributions))
+    stop("No 'lags' attribution is calculated. Set the 'do.lags' argument in the attributions() function to TRUE.")
   attributionsMelt <- melt(attributions, id.vars = "date", variable.factor = FALSE)
   attributionsMelt <- attributionsMelt[order(rank(as.character(variable)))]
   legendPos <- ifelse(length(unique(attributionsMelt[["variable"]])) <= 12, "top", "none")
   p <- ggplot(data = attributionsMelt, aes(x = date, y = value, group = variable, color = variable)) +
-    geom_area(aes(colour = variable, fill = variable), alpha = 1) +
+    geom_area(aes(fill = variable), alpha = 1) +
     geom_hline(yintercept = 0, size = 0.50, linetype = "dotted") +
     scale_fill_grey(start = 0, end = 1) +
     scale_x_date(name = "Date", date_labels = "%m-%Y") +

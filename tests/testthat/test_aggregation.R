@@ -23,6 +23,9 @@ ctr2 <- ctr_agg(howWithin = "counts", howDocs = "proportional", howTime = c("equ
                lag = 2, weights = data.frame(q1 = c(0.25, 0.75), q3 = c(0.75, 0.25)), do.ignoreZeros = FALSE)
 sentMeas2 <- sento_measures(corpus, lex, ctr2)
 
+ctr3 <- ctr_agg(howWithin = "counts", howDocs = "proportional", howTime = c("equal_weight", "linear", "own"), by = "year",
+                lag = 3, weights = data.frame(GI_en = c(0.3, 0.6, 0.1)))
+
 # sento_measures
 test_that("Number of columns coincide with provided dimensions", {
   expect_equal(nmeasures(sentMeas1), length(sentMeas1$features) * length(sentMeas1$lexicons) * length(sentMeas1$time))
@@ -32,11 +35,12 @@ test_that("Number of columns coincide with provided dimensions", {
 # ctr_agg
 test_that("Aggregation control function breaks when wrong inputs supplied", {
   expect_error(ctr_agg(howWithin = c("oops", "again"), howDocs = c("mistake", "forYou"), howTime = "bad",
-                       by = "infinitely", fill = "theMartiniPolice", nCore = c("yes", "man")))
+                       lag = 42, by = "infinitely", fill = "theMartiniPolice", nCore = c("yes", "man")))
   expect_error(ctr_agg(howTime = c("almon", "beta", "exponential"), lag = 0,
                        ordersAlm = -1:2, aBeta = -2, bBeta = -3, alphasExp = c(-1, -3)))
   expect_warning(ctr_agg(howTime = "linear", lag = 4, weights = data.frame(a = c(1/2, 1/2))))
   expect_error(ctr_agg(howTime = "own", lag = 12, weights = data.frame("dot--hacker" = rep(1/12, 12), check.names = FALSE)))
+  expect_warning(ctr_agg(howTime = c("linear", "beta"), lag = 1))
 })
 
 # aggregate
@@ -46,6 +50,7 @@ test_that("Test input format of sentiment aggregation function", {
   expect_true(inherits(s1, "sentiment"))
   expect_true(inherits(aggregate(s1, ctr1), "sentomeasures"))
   expect_error(aggregate(s2, ctr2))
+  expect_error(sento_measures(corpus, lex, ctr3))
 })
 
 # peakdocs

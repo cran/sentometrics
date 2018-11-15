@@ -6,21 +6,21 @@
 \usage{
 ctr_agg(howWithin = "proportional", howDocs = "equal_weight",
   howTime = "equal_weight", do.ignoreZeros = TRUE, by = "day",
-  lag = 1L, fill = "zero", alphasExp = seq(0.1, 0.5, by = 0.1),
+  lag = 1, fill = "zero", alphasExp = seq(0.1, 0.5, by = 0.1),
   ordersAlm = 1:3, do.inverseAlm = TRUE, aBeta = 1:4, bBeta = 1:4,
   weights = NULL, tokens = NULL, nCore = 1)
 }
 \arguments{
 \item{howWithin}{a single \code{character} vector defining how aggregation within documents will be performed. Should
-\code{length(howWithin) > 1}, the first element is used. For currently available options on how aggregation can occur; see
-\code{\link{get_hows}()$words}.}
+\code{length(howWithin) > 1}, the first element is used. For available options on how this aggregation can
+occur; see \code{\link{get_hows}()$words}.}
 
 \item{howDocs}{a single \code{character} vector defining how aggregation across documents per date will be performed.
-Should \code{length(howDocs) > 1}, the first element is used. For currently available options on how aggregation can occur;
-see \code{\link{get_hows}()$docs}.}
+Should \code{length(howDocs) > 1}, the first element is used. For available options on how this aggregation
+can occur; see \code{\link{get_hows}()$docs}.}
 
 \item{howTime}{a \code{character} vector defining how aggregation across dates will be performed. More than one choice
-is possible. For currently available options on how aggregation can occur; see \code{\link{get_hows}()$time}.}
+is possible. For available options on how this aggregation can occur; see \code{\link{get_hows}()$time}.}
 
 \item{do.ignoreZeros}{a \code{logical} indicating whether zero sentiment values have to be ignored in the determination of
 the document weights while aggregating across documents. By default \code{do.ignoreZeros = TRUE}, such that documents with
@@ -31,7 +31,8 @@ level the dates should be aggregated. Dates are displayed as the first day of th
 \code{"2017-03-01"} for March 2017).}
 
 \item{lag}{a single \code{integer} vector, being the time lag to be specified for aggregation across time. By default
-equal to \code{1L}, meaning no aggregation across time.}
+equal to \code{1}, meaning no aggregation across time; a time weighting scheme named \code{"dummyTime"} is used in
+this case.}
 
 \item{fill}{a single \code{character} vector, one of \code{c("zero", "latest", "none")}, to control how missing
 sentiment values across the continuum of dates considered are added. This impacts the aggregation across time,

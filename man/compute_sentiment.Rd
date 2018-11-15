@@ -30,15 +30,10 @@ value of 1 (default) implies no parallelisation. Parallelisation is expected to 
 computation only for sufficiently large corpora, say, in the order of having at least 100,000 documents.}
 }
 \value{
-If \code{x} is a \code{sentocorpus} object, a \code{sentiment} object, i.e., a \code{list} containing:
-\item{sentiment}{the sentiment scores \code{data.table} with an \code{"id"}, a \code{"date"} and a
-\code{"word_count"} column, and all lexicon--feature sentiment scores columns.}
-\item{features}{a \code{character} vector of the different features.}
-\item{lexicons}{a \code{character} vector of the different lexicons used.}
-\item{howWithin}{the supplied \code{how} argument.}
-
-A \code{sentiment} object can be used for aggregation into time series with the
-\code{\link{aggregate.sentiment}} function.
+If \code{x} is a \code{sentocorpus} object, a \code{sentiment} object, i.e., a \code{data.table} containing
+the sentiment scores \code{data.table} with an \code{"id"}, a \code{"date"} and a \code{"word_count"} column,
+and all lexicon--feature sentiment scores columns. A \code{sentiment} object can be used for aggregation into
+time series with the \code{\link{aggregate.sentiment}} function.
 
 If \code{x} is a \pkg{quanteda} \code{\link[quanteda]{corpus}} object, a sentiment scores
 \code{data.table} with an \code{"id"} and a \code{"word_count"} column, and all lexicon--feature
@@ -66,18 +61,18 @@ If the \code{lexicons} argument has no \code{"valence"} element, the sentiment c
 matching with the lexicons [\emph{unigrams} approach]. If valence shifters are included in \code{lexicons} with a
 corresponding \code{"y"} column, these have the effect of modifying the polarity of a word detected from the lexicon if
 appearing right before such word (examples: not good, very bad or can't defend) [\emph{bigrams} approach]. If the valence
-table contains a \code{"t"} column, valence shifters are searched for in a cluster centered around a detected polarity word
-[\emph{clusters} approach]. The latter approach is similar along the one utilized by the \pkg{sentimentr} package, but
-simplified. A cluster amounts to four words before and two words after a polarity word. A cluster never overlaps with a
-preceding one. The polarity of a cluster is calculated as \eqn{n(1 + 0.80d)S + \sum s}. The polarity score of the detected
-word is \eqn{S}, \eqn{s} represents polarities of eventual other sentiment words, and \eqn{d} is the difference between
-the number of amplifiers (\code{t = 2}) and the number of deamplifiers (\code{t = 3}). If there is an odd number of
-negators (\code{t = 1}), \eqn{n = -1} and amplifiers are counted as deamplifiers, else \eqn{n = 1}. All scores, whether
-per unigram, per bigram or per cluster, are summed within a document, before the scaling defined by the \code{how}
-argument is applied. The \code{how = "proportionalPol"} option divides each document's sentiment score by the
-number of detected polarized words (counting words that appear multiple times by their frequency), instead
+table contains a \code{"t"} column, valence shifters are searched for in a cluster centered around a detected polarity
+word [\emph{clusters} approach]. The latter approach is similar along the one utilized by the \pkg{sentimentr} package,
+but simplified. A cluster amounts to four words before and two words after a polarity word. A cluster never overlaps with
+a preceding one. Roughly speaking, the polarity of a cluster is calculated as \eqn{n(1 + 0.80d)S + \sum s}. The polarity
+score of the detected word is \eqn{S}, \eqn{s} represents polarities of eventual other sentiment words, and \eqn{d} is
+the difference between the number of amplifiers (\code{t = 2}) and the number of deamplifiers (\code{t = 3}). If there
+is an odd number of negators (\code{t = 1}), \eqn{n = -1} and amplifiers are counted as deamplifiers, else \eqn{n = 1}.
+All scores, whether per unigram, per bigram or per cluster, are summed within a document, before the scaling defined
+by the \code{how} argument is applied. The \code{how = "proportionalPol"} option divides each document's sentiment
+score by the number of detected polarized words (counting words that appear multiple times by their frequency), instead
 of the total number of words which the \code{how = "proportional"} option gives. The \code{how = "counts"} option
-does no normalisation.
+does no normalisation. See the vignette for more details.
 }
 
 \examples{
@@ -105,8 +100,7 @@ sent3 <- compute_sentiment(corpusQSample, l3, how = "counts")
 
 # from an already tokenised corpus, using the 'tokens' argument
 toks <- as.list(quanteda::tokens(corpusQSample, what = "fastestword"))
-sent4 <- compute_sentiment(corpusQSample, l1[1], how = "counts",
-                           tokens = toks)
+sent4 <- compute_sentiment(corpusQSample, l1[1], how = "counts", tokens = toks)
 
 }
 \author{

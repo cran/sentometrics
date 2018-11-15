@@ -10,13 +10,13 @@
 #' \code{howDocs} and \code{howTime} arguments), call \code{\link{get_hows}}.
 #'
 #' @param howWithin a single \code{character} vector defining how aggregation within documents will be performed. Should
-#' \code{length(howWithin) > 1}, the first element is used. For currently available options on how aggregation can occur; see
-#' \code{\link{get_hows}()$words}.
+#' \code{length(howWithin) > 1}, the first element is used. For available options on how this aggregation can
+#' occur; see \code{\link{get_hows}()$words}.
 #' @param howDocs a single \code{character} vector defining how aggregation across documents per date will be performed.
-#' Should \code{length(howDocs) > 1}, the first element is used. For currently available options on how aggregation can occur;
-#' see \code{\link{get_hows}()$docs}.
+#' Should \code{length(howDocs) > 1}, the first element is used. For available options on how this aggregation
+#' can occur; see \code{\link{get_hows}()$docs}.
 #' @param howTime a \code{character} vector defining how aggregation across dates will be performed. More than one choice
-#' is possible. For currently available options on how aggregation can occur; see \code{\link{get_hows}()$time}.
+#' is possible. For available options on how this aggregation can occur; see \code{\link{get_hows}()$time}.
 #' @param do.ignoreZeros a \code{logical} indicating whether zero sentiment values have to be ignored in the determination of
 #' the document weights while aggregating across documents. By default \code{do.ignoreZeros = TRUE}, such that documents with
 #' a raw sentiment score of zero or for which a given feature indicator is equal to zero are considered irrelevant.
@@ -24,7 +24,8 @@
 #' level the dates should be aggregated. Dates are displayed as the first day of the period, if applicable (e.g.,
 #' \code{"2017-03-01"} for March 2017).
 #' @param lag a single \code{integer} vector, being the time lag to be specified for aggregation across time. By default
-#' equal to \code{1L}, meaning no aggregation across time.
+#' equal to \code{1}, meaning no aggregation across time; a time weighting scheme named \code{"dummyTime"} is used in
+#' this case.
 #' @param fill a single \code{character} vector, one of \code{c("zero", "latest", "none")}, to control how missing
 #' sentiment values across the continuum of dates considered are added. This impacts the aggregation across time,
 #' applying the \code{\link{measures_fill}} function before aggregating, except if \code{fill = "none"}. By default equal to
@@ -76,7 +77,7 @@
 #'
 #' @export
 ctr_agg <- function(howWithin = "proportional", howDocs = "equal_weight", howTime = "equal_weight",
-                    do.ignoreZeros = TRUE, by = "day", lag = 1L, fill = "zero", alphasExp = seq(0.1, 0.5, by = 0.1),
+                    do.ignoreZeros = TRUE, by = "day", lag = 1, fill = "zero", alphasExp = seq(0.1, 0.5, by = 0.1),
                     ordersAlm = 1:3, do.inverseAlm = TRUE, aBeta = 1:4, bBeta = 1:4, weights = NULL,
                     tokens = NULL, nCore = 1) {
 
@@ -90,7 +91,12 @@ ctr_agg <- function(howWithin = "proportional", howDocs = "equal_weight", howTim
     err <- c(err, paste0(howWithin, " is no current option for aggregation across words."))
   }
   if (!(howDocs %in% hows[["docs"]])) {
-    err <- c(err, paste0(howDocs, " is no current option for aggregation across docs."))
+    err <- c(err, paste0(howDocs, " is no current option for aggregation across documents."))
+  }
+  if (lag == 1) {
+    warning("The argument choice 'lag = 1' implies no time aggregation. We have kept a dummy weighting scheme 'dummyTime'.")
+    howTime <- "own"
+    weights <- data.frame(dummyTime = 1)
   }
   if (!all(howTime %in% hows[["time"]])) {
     err <- c(err, paste0(howTime[!(howTime %in% hows[["time"]])], " is no current option for aggregation across time. "))
@@ -158,12 +164,11 @@ ctr_agg <- function(howWithin = "proportional", howDocs = "equal_weight", howTim
 #'
 #' @author Samuel Borms, Keven Bluteau
 #'
-#' @description Wrapper function which assembles calls to \code{\link{compute_sentiment}} and \code{\link{aggregate}}, and
-#' includes the input \code{sentocorpus} and computed sentiment scores in its output. Serves as the most direct way towards a
-#' panel of textual sentiment measures as a \code{sentomeasures} object.
+#' @description Wrapper function which assembles calls to \code{\link{compute_sentiment}} and \code{\link{aggregate}}.
+#' Serves as the most direct way towards a panel of textual sentiment measures as a \code{sentomeasures} object.
 #'
 #' @details As a general rule, neither the names of the features, lexicons or time weighting schemes may contain
-#' any '-' symbol.
+#' any `-' symbol.
 #'
 #' @param sentocorpus a \code{sentocorpus} object created with \code{\link{sento_corpus}}.
 #' @param lexicons a \code{sentolexicons} object created with \code{\link{sento_lexicons}}.
@@ -180,13 +185,12 @@ ctr_agg <- function(howWithin = "proportional", howDocs = "equal_weight", howTim
 #' \item{sentiment}{the sentiment scores \code{data.table} with \code{"date"}, \code{"word_count"} and lexicon--feature
 #' sentiment scores columns.
 #' If \code{ctr$do.ignoreZeros = TRUE}, all zeros are replaced by \code{NA}.}
-#' \item{howWithin}{a single \code{character} vector to remind how sentiment within documents was aggregated.}
 #' \item{howDocs}{a single \code{character} vector to remind how sentiment across documents was aggregated.}
 #' \item{fill}{a single \code{character} vector that specifies if and how missing dates have been added before
 #' aggregation across time was carried out.}
 #' \item{do.ignoreZeros}{a single \code{character} vector to remind if documents with a zero feature-sentiment score
 #' have been ignored in the within-document aggregation.}
-#' \item{attribWeights}{a \code{list} of document and time weights used in the \code{\link{retrieve_attributions}} function.
+#' \item{attribWeights}{a \code{list} of document and time weights used in the \code{\link{attributions}} function.
 #' Serves further no direct purpose.}
 #'
 #' @seealso \code{\link{compute_sentiment}}, \code{\link{aggregate}}
@@ -227,8 +231,8 @@ sento_measures <- function(sentocorpus, lexicons, ctr) {
 #' measures by aggregating across documents and time. This function is called within \code{\link{sento_measures}},
 #' applied on the output of \code{\link{compute_sentiment}}.
 #'
-#' @param x a \code{sentiment} object created using \code{\link{compute_sentiment}}, computed from a
-#' \code{sentocorpus} object.
+#' @param x a \code{sentiment} object created using \code{\link{compute_sentiment}} (from a
+#' \code{sentocorpus} object), or an output from \code{\link{to_sentiment}}.
 #' @param ctr output from a \code{\link{ctr_agg}} call. The \code{howWithin} and \code{nCore} elements are ignored.
 #' @param ... not used.
 #'
@@ -266,9 +270,11 @@ aggregate.sentiment <- function(x, ctr, ...) {
 
 aggregate_docs <- function(sentiment, by, how = get_hows()$docs, do.ignoreZeros = TRUE) {
 
-  features <- sentiment$features
-  lexNames <- sentiment$lexicons
-  sent <- sentiment[["sentiment"]]
+  names <- stringi::stri_split(colnames(sentiment)[4:ncol(sentiment)], regex = "--")
+  lexNames <- unique(sapply(names, "[", 1))
+  features <- unique(sapply(names, "[", 2))
+
+  sent <- sentiment
   attribWeights <- list(W = NA, B = NA) # list with weights useful in later attribution analysis
 
   # reformat dates so they can be aggregated at the specified 'by' level, and cast to Date format
@@ -321,7 +327,6 @@ aggregate_docs <- function(sentiment, by, how = get_hows()$docs, do.ignoreZeros 
                         sentiment = sent, # zeros replaced by NAs if do.ignoreZeros = TRUE
                         stats = NA,
                         by = by,
-                        howWithin = sentiment$howWithin,
                         howDocs = how,
                         fill = NA,
                         do.ignoreZeros = do.ignoreZeros,
@@ -343,9 +348,17 @@ aggregate_time <- function(sentomeasures, lag, fill, how = get_hows()$time, ...)
   if (sum(duplicated(colnames(weights))) > 0) {
     duplics <- unique(colnames(weights)[duplicated(colnames(weights))])
     stop(paste0("Names of weighting schemes are not unique. Following names occur at least twice: ",
-                paste0(duplics, collapse = ", ")))
+                paste0(duplics, collapse = ", "), "."))
   }
-  sentomeasures$attribWeights[["B"]] <- copy(weights)
+
+  # check if any duplicate names across dimensions
+  namesAll <- c(sentomeasures$features, sentomeasures$lexicons, colnames(weights))
+  dup <- duplicated(namesAll)
+  if (any(dup)) {
+    stop(paste0("Following names appear at least twice as a component of a dimension: ",
+                paste0(unique(namesAll[dup]), collapse = ', '), ". ",
+                "Make sure names are unique within and across lexicons, features and time weighting schemes."))
+  }
 
   # apply rolling time window, if not too large, for every weights column and combine all new measures column-wise
   if (!(fill %in% "none")) sentomeasures <- measures_fill(sentomeasures, fill = fill)
@@ -354,6 +367,7 @@ aggregate_time <- function(sentomeasures, lag, fill, how = get_hows()$time, ...)
   m <- nrow(measures)
   if (lag > m)
     stop("Rolling time aggregation window (= ", lag, ") is too large for number of observations per measure (= ", m, ")")
+  sentomeasures$attribWeights[["B"]] <- copy(weights)
   for (i in 1:ncol(weights)) {
     name <- colnames(weights)[i]
     add <- RcppRoll::roll_sum(as.matrix(toRoll), n = lag, weights = as.vector(weights[, i]),
@@ -388,7 +402,8 @@ aggregate_time <- function(sentomeasures, lag, fill, how = get_hows()$time, ...)
 #' @param sentomeasures a \code{sentomeasures} object created using \code{\link{sento_measures}}.
 #' @param sentocorpus the \code{sentocorpus} object created with \code{\link{sento_corpus}}, used for the construction
 #' of the input \code{sentomeasures} object.
-#' @param n a \code{numeric} value to indicate the number of dates associated to sentiment peaks to extract.
+#' @param n a positive \code{numeric} value to indicate the number of dates associated to sentiment peaks to extract.
+#' If \code{n < 1}, it is interpreted as a quantile (for example, 0.07 would mean the 7\% most extreme dates).
 #' @param type a \code{character} value, either \code{"pos"}, \code{"neg"} or \code{"both"}, respectively to look
 #' for the \code{n} dates related to the most positive, most negative or most extreme (in absolute terms) sentiment
 #' occurrences.
@@ -412,12 +427,20 @@ aggregate_time <- function(sentomeasures, lag, fill, how = get_hows()$time, ...)
 #'
 #' # extract the peaks
 #' peaksAbs <- peakdocs(sentomeasures, corpus, n = 5)
+#' peaksAbsQuantile <- peakdocs(sentomeasures, corpus, n = 0.50)
 #' peaksPos <- peakdocs(sentomeasures, corpus, n = 5, type = "pos")
 #' peaksNeg <- peakdocs(sentomeasures, corpus, n = 5, type = "neg")
 #'
 #' @export
 peakdocs <- function(sentomeasures, sentocorpus, n = 10, type = "both", do.average = FALSE) {
   check_class(sentomeasures, "sentomeasures")
+  stopifnot(n > 0)
+  stopifnot(type %in% c("both", "neg", "pos"))
+
+  nMax <- nobs(sentomeasures)
+  if (n < 1) n <- n * nMax
+  n <- floor(n)
+  if (n >= nMax) stop("The 'n' argument asks for too many dates.")
 
   measures <- get_measures(sentomeasures)[, -1] # drop dates
   m <- nmeasures(sentomeasures)

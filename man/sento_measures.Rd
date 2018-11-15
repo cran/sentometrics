@@ -25,23 +25,21 @@ average correlation with all other measures) for each individual sentiment measu
 \item{sentiment}{the sentiment scores \code{data.table} with \code{"date"}, \code{"word_count"} and lexicon--feature
 sentiment scores columns.
 If \code{ctr$do.ignoreZeros = TRUE}, all zeros are replaced by \code{NA}.}
-\item{howWithin}{a single \code{character} vector to remind how sentiment within documents was aggregated.}
 \item{howDocs}{a single \code{character} vector to remind how sentiment across documents was aggregated.}
 \item{fill}{a single \code{character} vector that specifies if and how missing dates have been added before
 aggregation across time was carried out.}
 \item{do.ignoreZeros}{a single \code{character} vector to remind if documents with a zero feature-sentiment score
 have been ignored in the within-document aggregation.}
-\item{attribWeights}{a \code{list} of document and time weights used in the \code{\link{retrieve_attributions}} function.
+\item{attribWeights}{a \code{list} of document and time weights used in the \code{\link{attributions}} function.
 Serves further no direct purpose.}
 }
 \description{
-Wrapper function which assembles calls to \code{\link{compute_sentiment}} and \code{\link{aggregate}}, and
-includes the input \code{sentocorpus} and computed sentiment scores in its output. Serves as the most direct way towards a
-panel of textual sentiment measures as a \code{sentomeasures} object.
+Wrapper function which assembles calls to \code{\link{compute_sentiment}} and \code{\link{aggregate}}.
+Serves as the most direct way towards a panel of textual sentiment measures as a \code{sentomeasures} object.
 }
 \details{
 As a general rule, neither the names of the features, lexicons or time weighting schemes may contain
-any '-' symbol.
+any `-' symbol.
 }
 \examples{
 data("usnews", package = "sentometrics")

@@ -27,7 +27,7 @@ performs the associated out-of-sample prediction exercise through time.}
 
 \item{h}{an \code{integer} value that shifts the time series to have the desired prediction setup; \code{h = 0} means
 no change to the input data (nowcasting assuming data is aligned properly), \code{h > 0} shifts the dependent variable by
-\code{h} periods (i.e. rows) further in time (forecasting), \code{h < 0} shifts the independent variables by \code{h}
+\code{h} periods (i.e., rows) further in time (forecasting), \code{h < 0} shifts the independent variables by \code{h}
 periods.}
 
 \item{oos}{a non-negative \code{integer} to indicate the number of periods to skip from the end of the training sample
@@ -64,8 +64,9 @@ or set to \code{10^seq(2, -2, length.out = 100)} in case of cross-validation.}
 \code{do.iter = FALSE}). For example, given 100 possible iterations, \code{start = 70} leads to model estimations
 only for the last 31 samples.}
 
-\item{do.shrinkage.x}{a \code{logical}, if \code{TRUE} other regressors provided through the \code{x} argument of
-the \code{\link{sento_model}} function are subject to shrinkage, else not.}
+\item{do.shrinkage.x}{a \code{logical} vector to indicate which of the other regressors provided through the \code{x}
+argument of the \code{\link{sento_model}} function should be subject to shrinkage (\code{TRUE}). If argument is of
+length one, it applies to all external regressors.}
 
 \item{do.progress}{a \code{logical}, if \code{TRUE} progress statements are displayed during model calibration.}
 
@@ -103,10 +104,10 @@ ctrCV4 <- ctr_model(model = "gaussian", type = "cv", do.iter = TRUE, h = 0, trai
 }
 \references{
 Tibshirani and Taylor (2012). ``Degrees of freedom in LASSO problems''.
-\emph{Annals of Statistics 40, 1198-12}, \url{http://dx.doi.org/10.1214/12-AOS1003}.
+\emph{Annals of Statistics 40, 1198-12}, \url{https://doi.org/10.1214/12-AOS1003}.
 
 Zou, Hastie and Tibshirani (2007). ``On the `degrees of freedom' of the LASSO''.
-\emph{Annals of Statistics 35, 2173-2192},  \url{http://dx.doi.org/10.1214/009053607000000127}.
+\emph{Annals of Statistics 35, 2173-2192},  \url{https://doi.org/10.1214/009053607000000127}.
 }
 \seealso{
 \code{\link{sento_model}}

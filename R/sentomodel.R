@@ -16,7 +16,7 @@
 #' @param do.intercept a \code{logical}, \code{TRUE} by default fits an intercept.
 #' @param h an \code{integer} value that shifts the time series to have the desired prediction setup; \code{h = 0} means
 #' no change to the input data (nowcasting assuming data is aligned properly), \code{h > 0} shifts the dependent variable by
-#' \code{h} periods (i.e. rows) further in time (forecasting), \code{h < 0} shifts the independent variables by \code{h}
+#' \code{h} periods (i.e., rows) further in time (forecasting), \code{h < 0} shifts the independent variables by \code{h}
 #' periods.
 #' @param alphas a \code{numeric} vector of the alphas to test for during calibration, between 0 and 1. A value of
 #' 0 pertains to Ridge regression, a value of 1 to LASSO regression; values in between are pure elastic net.
@@ -52,17 +52,18 @@
 #' will be of \eqn{y_{t + 2} - y_t} on \eqn{X_t}. If \code{h = -2}, the regression fitted is \eqn{y_{t + 2} - y_t} on
 #' \eqn{X_{t+2}}. The argument is always kept at \code{FALSE} if the \code{model} argument is one of
 #' \code{c("binomial", "multinomial")}.
-#' @param do.shrinkage.x a \code{logical}, if \code{TRUE} other regressors provided through the \code{x} argument of
-#' the \code{\link{sento_model}} function are subject to shrinkage, else not.
+#' @param do.shrinkage.x a \code{logical} vector to indicate which of the other regressors provided through the \code{x}
+#' argument of the \code{\link{sento_model}} function should be subject to shrinkage (\code{TRUE}). If argument is of
+#' length one, it applies to all external regressors.
 #'
 #' @return A \code{list} encapsulating the control parameters.
 #'
 #' @seealso \code{\link{sento_model}}
 #'
 #' @references Tibshirani and Taylor (2012). ``Degrees of freedom in LASSO problems''.
-#' \emph{Annals of Statistics 40, 1198-12}, \url{http://dx.doi.org/10.1214/12-AOS1003}.
+#' \emph{Annals of Statistics 40, 1198-12}, \url{https://doi.org/10.1214/12-AOS1003}.
 #' @references Zou, Hastie and Tibshirani (2007). ``On the `degrees of freedom' of the LASSO''.
-#' \emph{Annals of Statistics 35, 2173-2192},  \url{http://dx.doi.org/10.1214/009053607000000127}.
+#' \emph{Annals of Statistics 35, 2173-2192},  \url{https://doi.org/10.1214/009053607000000127}.
 #'
 #' @examples
 #' # information criterion based model control functions
@@ -100,8 +101,8 @@ ctr_model <- function(model = c("gaussian", "binomial", "multinomial"), type = c
   if (length(do.intercept) != 1 || !is.logical(do.intercept)) {
     err <- c(err, "The 'do.intercept' argument should be a logical of size one.")
   }
-  if (length(do.shrinkage.x) != 1 || !is.logical(do.shrinkage.x)) {
-    err <- c(err, "The 'do.shrinkage.x' argument should be a logical of size one.")
+  if (!is.logical(do.shrinkage.x)) {
+    err <- c(err, "The 'do.shrinkage.x' argument should be of type logical.")
   }
   if (model %in% c("binomial", "multinomial") && type != "cv") {
     err <- c(err, "Information criteria are currently only supported for linear models, opt for cross-validation instead.")
@@ -205,16 +206,16 @@ ctr_model <- function(model = c("gaussian", "binomial", "multinomial"), type = c
 #' @param ctr output from a \code{\link{ctr_model}} call.
 #'
 #' @return If \code{ctr$do.iter = FALSE}, a \code{sentomodel} object which is a \code{list} containing:
-#' \item{reg}{optimized regression, i.e. a model-specific \code{glmnet} object.}
+#' \item{reg}{optimized regression, i.e., a model-specific \code{glmnet} object, including for example the estimated
+#' coefficients.}
 #' \item{model}{the input argument \code{ctr$model}, to indicate the type of model estimated.}
-#' \item{x}{a \code{matrix} of the values for all explanatory variables used in the regression.}
 #' \item{alpha}{calibrated alpha.}
 #' \item{lambda}{calibrated lambda.}
 #' \item{trained}{output from \code{\link[caret]{train}} call (if \code{ctr$type =} "\code{cv}"). There is no such
 #' output if the control parameters \code{alphas} and \code{lambdas} both specify one value.}
 #' \item{ic}{a \code{list} composed of two elements: under \code{"criterion"}, the type of information criterion used in the
 #' calibration, and under \code{"matrix"}, a \code{matrix} of all information criterion values for \code{alphas} as rows
-#' and the respective lambda values as columns (if \code{ctr$type !=} "\code{cv}"). Any \code{NA} value in the latter
+#' and the respective lambda values as columns (if \code{ctr$type != } "\code{cv}"). Any \code{NA} value in the latter
 #' element means the specific information criterion could not be computed.}
 #' \item{dates}{sample reference dates as a two-element \code{character} vector, being the earliest and most recent date from
 #' the \code{sentomeasures} object accounted for in the estimation window.}
@@ -225,9 +226,8 @@ ctr_model <- function(model = c("gaussian", "binomial", "multinomial"), type = c
 #' not considered when it is a duplicate of another, or when at least 50\% of the observations are equal to zero.}
 #'
 #' @return If \code{ctr$do.iter = TRUE}, a \code{sentomodeliter} object which is a \code{list} containing:
-#' \item{models}{all sparse regressions, i.e. separate \code{sentomodel} objects as above, as a \code{list} with as names the
-#' dates from the perspective of the sentiment measures at which predictions for performance measurement are carried out (i.e.
-#' one date step beyond the date \code{sentomodel$dates[2]}).}
+#' \item{models}{all sparse regressions, i.e., separate \code{sentomodel} objects as above, as a \code{list} with as names the
+#' dates from the perspective of the sentiment measures at which the out-of-sample predictions are carried out.}
 #' \item{alphas}{calibrated alphas.}
 #' \item{lambdas}{calibrated lambdas.}
 #' \item{performance}{a \code{data.frame} with performance-related measures, being "\code{RMSFE}" (root mean squared
@@ -328,7 +328,7 @@ sento_model <- function(sentomeasures, y, x = NULL, ctr) {
 
   family <- ctr$model
   type <- ctr$type
-  intercept <- ctr$do.intercept
+  do.intercept <- ctr$do.intercept
   do.iter <- ctr$do.iter
   h <- ctr$h
   oos <- ctr$oos # used when type is "cv" or when do.iter is TRUE
@@ -343,14 +343,21 @@ sento_model <- function(sentomeasures, y, x = NULL, ctr) {
   start <- ctr$start # used when do.iter is TRUE
   nCore <- ctr$nCore # used when do.iter is TRUE
 
+  if (!is.null(x)) {
+    nx <- ncol(x)
+    if (length(do.shrinkage.x) == 1) do.shrinkage.x <- rep(do.shrinkage.x, nx)
+    else if (length(do.shrinkage.x) != nx)
+      stop("The length of the 'do.shrinkage.x' argument is not in line with the number of columns in 'x'.")
+  } else do.shrinkage.x <- NULL
+
   if (do.iter == TRUE) {
-    out <- run_sento_model_iter(sentomeasures, y = y, x = x, h = h, family = family, intercept = intercept,
+    out <- run_sento_model_iter(sentomeasures, y = y, x = x, h = h, family = family, do.intercept = do.intercept,
                                 alphas = alphas, lambdas = lambdas, type = type, nSample = nSample,
                                 start = start, oos = oos, trainWindow = trainWindow, testWindow = testWindow,
                                 do.progress = do.progress, nCore = nCore, do.iter = do.iter,
                                 do.difference = do.difference, do.shrinkage.x = do.shrinkage.x)
   } else {
-    out <- run_sento_model(sentomeasures, y = y, x = x, h = h, family = family, intercept = intercept,
+    out <- run_sento_model(sentomeasures, y = y, x = x, h = h, family = family, do.intercept = do.intercept,
                            alphas = alphas, lambdas = lambdas, type = type, trainWindow = trainWindow,
                            testWindow = testWindow, oos = oos, do.progress = do.progress,
                            do.difference = do.difference, do.shrinkage.x = do.shrinkage.x, do.iter = do.iter)
@@ -359,27 +366,23 @@ sento_model <- function(sentomeasures, y, x = NULL, ctr) {
   return(out)
 }
 
-.run_sento_model <- function(sentomeasures, y, x, h, alphas, lambdas, intercept, trainWindow, testWindow,
+.run_sento_model <- function(sentomeasures, y, x, h, alphas, lambdas, do.intercept, trainWindow, testWindow,
                              oos, type, do.progress, family, do.difference, do.shrinkage.x, ...) {
   # inputs i and nSample are NULL if one-shot model (not iterative)
   dots <- list(...)
   i <- dots$i
   nSample <- dots$nSample
 
-  nVar <- c(nmeasures(sentomeasures), ifelse(is.null(x), 0, ncol(x))) # number of explanatory variables (before cleaning)
+  nx <- ifelse(is.null(x), 0, ncol(x))
+  nVar <- c(nmeasures(sentomeasures), nx) # number of explanatory variables (before cleaning)
   alignedVars <- align_variables(y, sentomeasures, x, h, difference = do.difference, i = i, nSample = nSample)
   yy <- alignedVars$y
   xx <- alignedVars$x # xx includes sentiment measures and other variables
-  nx <- ifelse(do.shrinkage.x == TRUE, 0, ifelse(is.null(x), 0, ncol(x)))
-  cleaned <- clean_panel(xx, nx = nx) # get rid of duplicated or too sparse explanatory variables
+  cleaned <- clean_panel(xx, nx) # drop duplicated and too sparse sentiment variables
   xx <- cleaned$xNew
   discarded <- cleaned$discarded
+  penalty <- c(rep(1, ncol(xx) - nx), as.numeric(do.shrinkage.x)) # 1 means shrinkage, 0 means no shrinkage
   sampleDates <- c(alignedVars$datesX[1], alignedVars$datesX[nrow(xx)])
-  if (do.shrinkage.x == TRUE) {
-    penalty <- rep(1, ncol(xx))
-  } else {
-    penalty <- c(rep(1, ncol(xx) - nx), rep(0, nx)) # no shrinkage for original x variables
-  }
 
   if (type == "cv") { # cross-validation
     do.iter <- dots$do.iter
@@ -391,7 +394,7 @@ sento_model <- function(sentomeasures, y, x = NULL, ctr) {
     if (is.null(lambdas)) lambdas <- 10^seq(2, -2, length.out = 100) # default lambdas sequence for cross-validation
     tuneGrid <- expand.grid(alpha = alphas, lambda = lambdas)
 
-    # change y variable to format required in caret::train function
+    # change y variable to format required in caret::train() function
     if (family == "gaussian") yyy <- yy[, 1]
     else yyy <- as.factor(colnames(yy)[yy %*% 1:ncol(yy)])
 
@@ -422,7 +425,7 @@ sento_model <- function(sentomeasures, y, x = NULL, ctr) {
         else if (alpha == utils::tail(alphas, 1)) cat(alpha, "\n", sep = "")
         else cat(alpha, ", ", sep = "")
       }
-      reg <- glmnet::glmnet(x = xx, y = yy, penalty.factor = penalty, intercept = intercept,
+      reg <- glmnet::glmnet(x = xx, y = yy, penalty.factor = penalty, intercept = do.intercept,
                             alpha = alpha, lambda = lambdas, standardize = TRUE, family = family)
       lambdasReg <- reg$lambda
       xScaled <- scale(xx)
@@ -445,9 +448,13 @@ sento_model <- function(sentomeasures, y, x = NULL, ctr) {
         RSSMat[i, 1:K] <- df$RSS
       }
       idx <- suppressWarnings(which(dfsMat == max(dfsMat, na.rm = TRUE), arr.ind = TRUE))
-      if (dim(idx)[1] == 0)
+      if (dim(idx)[1] == 0) {
         sigma2 <- NA
-      else sigma2 <- RSSMat[idx[1, 1], idx[1, 2]] / (length(y) - dfsMat[idx[1, 1], idx[1, 2]])
+      } else {
+        dfMax <- dfsMat[idx[1, 1], idx[1, 2]]
+        k <- (nrow(y) - ifelse(nrow(y) < dfMax, nrow(y), dfMax)) # correction not carried over in dfsMat
+        sigma2 <- RSSMat[idx[1, 1], idx[1, 2]] / k
+      }
       if (ic == "BIC")
         IC <- compute_BIC(y = y, dfA = dfsMat, RSS = RSSMat, sigma2 = sigma2)
       else if (ic == "AIC")
@@ -458,7 +465,7 @@ sento_model <- function(sentomeasures, y, x = NULL, ctr) {
       opt <-  suppressWarnings(which(IC == min(IC, na.rm = TRUE), arr.ind = TRUE))
       if (dim(opt)[1] == 0) {
         return(list(IC = IC, lambda = lambdasMat[1, 1], alpha = alphas[1]))
-        warning("Computation of none of the information criteria is resolved. First alpha and lambda are used as optimum.")
+        warning("Computation of none of the information criteria resolved. First alpha and lambda used as optimum.")
       }
       else {
         return(list(IC = IC, lambda = lambdasMat[opt[1, 1], opt[1, 2]], alpha = alphas[opt[1, 1]]))
@@ -474,12 +481,11 @@ sento_model <- function(sentomeasures, y, x = NULL, ctr) {
   }
 
   # actual elastic net optimization
-  regOpt <- glmnet::glmnet(x = xx, y = yy, penalty.factor = penalty, intercept = intercept,
+  regOpt <- glmnet::glmnet(x = xx, y = yy, penalty.factor = penalty, intercept = do.intercept,
                            lambda = lambdaOpt, alpha = alphaOpt, standardize = TRUE, family = family)
 
   out <- c(list(reg = regOpt,
                 model = family,
-                x = xx,
                 alpha = alphaOpt,
                 lambda = lambdaOpt,
                 dates = sampleDates,
@@ -496,7 +502,7 @@ sento_model <- function(sentomeasures, y, x = NULL, ctr) {
 run_sento_model <- compiler::cmpfun(.run_sento_model)
 
 #' @importFrom foreach %dopar%
-.run_sento_model_iter <- function(sentomeasures, y, x, h, family, intercept, alphas, lambdas,
+.run_sento_model_iter <- function(sentomeasures, y, x, h, family, do.intercept, alphas, lambdas,
                                   type, nSample, start, trainWindow, testWindow, oos, do.progress,
                                   nCore, do.iter, do.difference, do.shrinkage.x) {
 
@@ -513,7 +519,7 @@ run_sento_model <- compiler::cmpfun(.run_sento_model)
     doParallel::registerDoParallel(cl)
     regsOpt <- foreach::foreach(i = start:nIter, .export = c("run_sento_model")) %dopar% {
       out <- run_sento_model(
-        sentomeasures, y, x, h, alphas = alphas, lambdas = lambdas, intercept = intercept,
+        sentomeasures, y, x, h, alphas = alphas, lambdas = lambdas, do.intercept = do.intercept,
         trainWindow = trainWindow, testWindow = testWindow, oos = oos, type = type, do.progress = FALSE,
         family = family, do.iter = do.iter, do.difference = do.difference, do.shrinkage.x = do.shrinkage.x,
         nSample = nSample, i = i
@@ -524,9 +530,9 @@ run_sento_model <- compiler::cmpfun(.run_sento_model)
     foreach::registerDoSEQ()
   } else {
     regsOpt <- lapply(start:nIter, function(i) {
-      if (do.progress == TRUE) cat("iteration: ", (i - start + 1), " from ", (nIter - start + 1), "\n", sep = "")
+      if (do.progress == TRUE) cat("Iteration: ", (i - start + 1), " from ", (nIter - start + 1), "\n", sep = "")
       out <- run_sento_model(
-        sentomeasures, y, x, h, alphas = alphas, lambdas = lambdas, intercept = intercept,
+        sentomeasures, y, x, h, alphas = alphas, lambdas = lambdas, do.intercept = do.intercept,
         trainWindow = trainWindow, testWindow = testWindow, oos = oos, type = type, do.progress = do.progress,
         family = family, do.iter = do.iter, do.difference = do.difference, do.shrinkage.x = do.shrinkage.x,
         nSample = nSample, i = i
@@ -545,7 +551,6 @@ run_sento_model <- compiler::cmpfun(.run_sento_model)
   xPred <- alignedVarsAll$x[oosRun, , drop = FALSE]
   yReal <- alignedVarsAll$y[oosRun, , drop = FALSE]
   datesX <- alignedVarsAll$datesX[oosRun] # dates from perspective of x at which forecasts are made
-  remove(oosRun)
   names(regsOpt) <- datesX
   if (family %in% c("binomial", "multinomial")) {
     n <- length(colnames(yReal)) # number of factor levels
@@ -658,7 +663,7 @@ summary.sentomodel <- function(object, ...) {
 
 #' @export
 print.sentomodel <- function(x, ...) {
-  cat("A sentomodel object.")
+  cat("A sentomodel object.", "\n")
 }
 
 #' @export
@@ -698,7 +703,7 @@ summary.sentomodeliter <- function(object, ...) {
 
 #' @export
 print.sentomodeliter <- function(x, ...) {
-  cat("A sentomodeliter object.")
+  cat("A sentomodeliter object.", "\n")
 }
 
 #' Plot iterative predictions versus realized values
@@ -753,10 +758,10 @@ plot.sentomodeliter <- function(x, ...) {
 #' \code{predict.glmnet}, but simplified in terms of parameters.
 #'
 #' @param object a \code{sentomodel} object created with \code{\link{sento_model}}.
-#' @param newx a \code{matrix} of \code{numeric} values with all explanatory variables to be used for the prediction(s),
-#' structured row-by-row; see documentation for \code{\link{predict.glmnet}}. The number of variables should be equal to
-#' \code{sum(sentomodel$nVar)}, being the number of original explanatory variables (sentiment measures and other).
-#' Variables discarded in the regression process are discarded again here, based on \code{sentomodel$discarded}.
+#' @param newx a data \code{matrix} used for the prediction(s), row-by-row; see
+#' \code{\link{predict.glmnet}}. The number of columns should be equal to \code{sum(sentomodel$nVar)}, being the
+#' number of original sentiment measures and other variables. The variables discarded in the regression process are
+#' dealt with within this function, based on \code{sentomodel$discarded}.
 #' @param type type of prediction required, a value from \code{c("link", "response", "class")}, see documentation for
 #' \code{\link{predict.glmnet}}.
 #' @param offset not used.
@@ -767,11 +772,14 @@ plot.sentomodeliter <- function(x, ...) {
 #' @seealso \code{\link{predict.glmnet}}, \code{\link{sento_model}}
 #'
 #' @export
-predict.sentomodel <- function(object, newx, type, offset = NULL, ...) {
+predict.sentomodel <- function(object, newx, type = "response", offset = NULL, ...) {
+  stopifnot(is.matrix(newx))
   sentomodel <- object
   reg <- sentomodel$reg
   discarded <- sentomodel$discarded
-  idx <- c(!discarded, rep(TRUE, (sum(sentomodel$nVar) - length(discarded)))) # TRUE means variable to keep for prediction
+  n <- sum(sentomodel$nVar)
+  if (n != ncol(newx)) stop("Number of columns in 'newx' not equal to the required number of input variables.")
+  idx <- c(!discarded, rep(TRUE, (n - length(discarded)))) # TRUE means variable to keep for prediction
   newx <- newx[, idx, drop = FALSE]
   pred <- stats::predict(reg, newx = newx, type = type, offset = NULL)
   return(pred)
@@ -781,16 +789,17 @@ predict.sentomodel <- function(object, newx, type, offset = NULL, ...) {
 #'
 #' @author Samuel Borms
 #'
-#' @description Structures specific performance data for a set of different \code{sentomodeliter} objects as loss data. Can
-#' then be used, for instance, as an input to create a model confidence set (Hansen, Lunde and Nason, 2011) with
+#' @description Structures specific performance data for a set of different \code{sentomodeliter} objects as loss data.
+#' Can then be used, for instance, as an input to create a model confidence set (Hansen, Lunde and Nason, 2011) with
 #' the \pkg{MCS} package.
 #'
-#' @param models a named \code{list} of \code{sentomodeliter} objects. All models should be of the same family, being either
-#' \code{"gaussian"}, \code{"binomial"} or \code{"multinomial"}, and have performance data of the same dimensions.
-#' @param loss a single \code{character} vector, either \code{"DA"} (directional \emph{in}accuracy), \code{"errorSq"}
-#' (squared errors), \code{"AD"} (absolute errors) or \code{"accuracy"} (\emph{in}accurate class predictions). This argument
-#' defines on what basis the model confidence set is calculated. The first three options are available for \code{"gaussian"}
-#' models, the last option applies only to \code{"binomial"} and \code{"multinomial"} models.
+#' @param models a named \code{list} of \code{sentomodeliter} objects. All models should be of the same family, being
+#' either \code{"gaussian"}, \code{"binomial"} or \code{"multinomial"}, and have performance data of the same dimensions.
+#' @param loss a single \code{character} vector, either \code{"DA"} (directional \emph{in}accuracy), \code{"error"}
+#' (prediction minus realized response variable), \code{"errorSq"} (squared errors), \code{"AD"} (absolute errors) or
+#' \code{"accuracy"} (\emph{in}accurate class predictions). This argument defines on what basis the model confidence set
+#' is calculated. The first four options are available for \code{"gaussian"} models, the last option applies only to
+#' \code{"binomial"} and \code{"multinomial"} models.
 #'
 #' @return A \code{matrix} of loss data.
 #'
@@ -837,10 +846,12 @@ predict.sentomodel <- function(object, newx, type, offset = NULL, ...) {
 #' mcs <- MCS::MCSprocedure(lossData)}
 #'
 #' @export
-get_loss_data <- function(models, loss = c("DA", "errorSq", "AD", "accuracy")) {
+get_loss_data <- function(models, loss = c("DA", "error", "errorSq", "AD", "accuracy")) {
 
   # check if input is consistent
   stopifnot(is.list(models))
+  stopifnot(loss %in% c("DA", "error", "errorSq", "AD", "accuracy"))
+  if (length(loss) != 1) stop("The 'loss' argument should contain a single argument.")
   checkClass <- sapply(models, function(m) return(!inherits(m, "sentomodeliter")))
   if (any(checkClass)) stop("Not all elements of the 'models' list are sentomodeliter objects.")
   modelFamilies <- unlist(lapply(models, function(m) return(m$models[[1]]$model)))
@@ -848,8 +859,7 @@ get_loss_data <- function(models, loss = c("DA", "errorSq", "AD", "accuracy")) {
   mF <- as.character(modelFamilies[1])
   if (!all(sapply(models, function(m) length(m$models)) == length(models[[1]][["models"]])))
     stop("All models should contain the same number of iterations.")
-  if (length(loss) != 1) stop("The 'loss' argument should contain a single argument.")
-  checkGaussian <- (mF == "gaussian" & (loss %in% c("DA", "errorSq", "AD")))
+  checkGaussian <- (mF == "gaussian" & (loss %in% c("DA", "error", "errorSq", "AD")))
   checkLogistic <- (mF %in% c("binomial", "multinomial") & (loss == "accuracy"))
   if (!(checkGaussian | checkLogistic))
     stop("The 'loss' argument is not in line with the model family.")
@@ -858,7 +868,7 @@ get_loss_data <- function(models, loss = c("DA", "errorSq", "AD", "accuracy")) {
   lossData <- matrix(unlist(lapply(models, function(m) m$performance$raw[[loss]]), use.names = FALSE), ncol = length(models))
   colnames(lossData) <- names(models)
   if (loss %in% c("DA", "accuracy")) lossData <- abs(lossData - 1) # from accuracy to inaccuracy
-  if (loss == "DA") lossData <- lossData[-1, ] # get rid of first NA values
+  if (loss == "DA") lossData <- lossData[-1, , drop = FALSE] # get rid of first NA values
   if (any(duplicated(t(lossData)))) warning("Loss data across some of the models is duplicated.")
 
   return(lossData)

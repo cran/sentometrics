@@ -6,8 +6,8 @@
 #' @method plot sentomeasures
 #'
 #' @description Plotting method that shows all sentiment measures from the provided \code{sentomeasures}
-#' object in one plot, or the average along one of the lexicons, features and time weighting dimensions. We suggest to make
-#' use of the \code{\link{measures_select}} function when you want to plot only a subset of the sentiment measures.
+#' object in one plot, or the average along one of the lexicons, features and time weighting dimensions. We suggest to
+#' make use of a \code{measures_xyz} function when you want to plot only a subset of the sentiment measures.
 #'
 #' @param x a \code{sentomeasures} object created using \code{\link{sento_measures}}.
 #' @param group a value from \code{c("lexicons", "features", "time", "all")}. The first three choices display the average of
@@ -185,8 +185,8 @@ nobs.sentomeasures <- function(object, ...) {
 #' # scale sentiment measures to zero mean and unit standard deviation
 #' sc1 <- scale(sentomeasures)
 #'
-#' n <- nobs(sentomeasures) # row dimension
-#' m <- nmeasures(sentomeasures) # column dimension
+#' n <- nobs(sentomeasures)
+#' m <- nmeasures(sentomeasures)
 #'
 #' # add a matrix
 #' sc2 <- scale(sentomeasures, center = matrix(runif(n * m), n, m), scale = FALSE)
@@ -211,7 +211,8 @@ scale.sentomeasures <- function(x, center = TRUE, scale = TRUE) {
     measures <- measures / scale
     scale <- FALSE
   }
-  measuresNorm <- scale(measures, center, scale)
+
+  measuresNorm <- scale(measures, center = center, scale = scale)
   sentomeasures$measures <- data.table(date = dates, measuresNorm)
   sentomeasures$stats <- compute_stats(sentomeasures)
   return(sentomeasures)
@@ -230,7 +231,7 @@ summary.sentomeasures <- function(object, ...) {
   cat("Following scheme is applied for aggregation across documents:", sentomeasures$howDocs, "\n")
   cat("Following schemes are applied for aggregation across time:", sentomeasures$time, "\n")
   cat("\n")
-  cat("Aggregate statistics:", "\n")
+  cat("Aggregate average statistics:", "\n")
   print(round(rowMeans(sentomeasures$stats), 5))
   cat()
 }
@@ -240,7 +241,7 @@ print.sentomeasures <- function(x, ...) {
   sentomeasures <- x
   cat("A sentomeasures object (", nmeasures(sentomeasures),
       " textual sentiment time series, ", nobs(sentomeasures),
-      " observations).", sep = "")
+      " observations).", "\n", sep = "")
 }
 
 #' Get the dates of the sentiment measures/time series
