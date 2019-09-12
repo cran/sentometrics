@@ -1,17 +1,17 @@
 
-#' Create a sentocorpus object
+#' Create a sento_corpus object
 #'
 #' @author Samuel Borms
 #'
-#' @description Formalizes a collection of texts into a well-defined corpus object derived from the
-#' \code{\link[quanteda]{corpus}} object. The \pkg{quanteda} package provides a robust text mining infrastructure,
-#' see \href{http://quanteda.io/index.html}{quanteda}. Their corpus structure brings for example a
-#' handy corpus manipulation toolset. This function performs a set of checks on the input data and prepares the
-#' corpus for further analysis.
+#' @description Formalizes a collection of texts into a \code{sento_corpus} object derived from the \pkg{quanteda}
+#' \code{\link[quanteda]{corpus}} object. The \pkg{quanteda} package provides a robust text mining infrastructure
+#' (see \href{http://quanteda.io/index.html}{quanteda}), including a handy corpus manipulation toolset. This function
+#' performs a set of checks on the input data and prepares the corpus for further analysis by structurally
+#' integrating a date dimension and numeric metadata features.
 #'
-#' @details A \code{sentocorpus} object is a specialized instance of a \pkg{quanteda} \code{\link[quanteda]{corpus}}. Any
-#' \pkg{quanteda} function applicable to its \code{\link[quanteda]{corpus}} object can also be applied to a \code{sentocorpus}
-#' object. However, changing a given \code{sentocorpus} object too drastically using some of \pkg{quanteda}'s functions might
+#' @details A \code{sento_corpus} object is a specialized instance of a \pkg{quanteda} \code{\link[quanteda]{corpus}}. Any
+#' \pkg{quanteda} function applicable to its \code{\link[quanteda]{corpus}} object can also be applied to a \code{sento_corpus}
+#' object. However, changing a given \code{sento_corpus} object too drastically using some of \pkg{quanteda}'s functions might
 #' alter the very structure the corpus is meant to have (as defined in the \code{corpusdf} argument) to be able to be used as
 #' an input in other functions of the \pkg{sentometrics} package. There are functions, including
 #' \code{\link[quanteda]{corpus_sample}} or \code{\link[quanteda]{corpus_subset}}, that do not change the actual corpus
@@ -20,18 +20,23 @@
 #' applies only when \code{do.ignoreZeros = TRUE}. Because of this (implicit) selection that can be performed, having
 #' complementary features (e.g., \code{"economy"} and \code{"noneconomy"}) makes sense.
 #'
+#' It is also possible to add one non-numerical feature, that is, \code{"language"}, to designate the language
+#' of the corpus texts. When this feature is provided on corpus-level, a list of lexicons for different
+#' languages is expected in the function \code{compute_sentiment}.
+#'
 #' @param corpusdf a \code{data.frame} (or a \code{data.table}, or a \code{tbl}) with as named columns: a document \code{"id"}
-#' column (in \code{character} mode), a \code{"date"} column (as \code{"yyyy-mm-dd"}), a \code{"texts"} column (in
-#' \code{character} mode), and a series of feature columns of type \code{numeric}, with values between 0 and 1 to specify the
-#' degree of connectedness of a feature to a document. Features could be topics (e.g., legal or economic),
-#' article sources (e.g., online or print), amongst many more options. When no feature column is provided, a
-#' feature named \code{"dummyFeature"} is added. All spaces in the names of the features are replaced by \code{'_'}. Feature
-#' columns with values not between 0 and 1 are rescaled column-wise.
+#' column (in \code{character} mode), a \code{"date"} column (as \code{"yyyy-mm-dd"}), a \code{"texts"} column
+#' (in \code{character} mode), an optional \code{"language"} column (in \code{character} mode), and a series of
+#' feature columns of type \code{numeric}, with values between 0 and 1 to specify the degree of connectedness of
+#' a feature to a document. Features could be for instance topics (e.g., legal or economic) or article sources (e.g., online or
+#' print). When no feature column is provided, a feature named \code{"dummyFeature"}
+#' is added. All spaces in the names of the features are replaced by \code{'_'}. Feature columns with values not
+#' between 0 and 1 are rescaled column-wise.
 #' @param do.clean a \code{logical}, if \code{TRUE} all texts undergo a cleaning routine to eliminate common textual garbage.
 #' This includes a brute force replacement of HTML tags and non-alphanumeric characters by an empty string. To use with care
 #' if the text is meant to have non-alphanumeric characters! Preferably, cleaning is done outside of this function call.
 #'
-#' @return A \code{sentocorpus} object, derived from a \pkg{quanteda} \code{\link[quanteda]{corpus}} classed \code{list}
+#' @return A \code{sento_corpus} object, derived from a \pkg{quanteda} \code{\link[quanteda]{corpus}} classed \code{list}
 #' with elements \code{"documents"}, \code{"metadata"}, and \code{"settings"} kept. The first element incorporates
 #' the corpus represented as a \code{data.frame}.
 #'
@@ -59,6 +64,11 @@
 #' # corpus creation when no features are present
 #' corpusDummy <- sento_corpus(corpusdf = usnews[, 1:3])
 #'
+#' # corpus creation with a qualitative language feature
+#' usnews[["language"]] <- "en"
+#' usnews[["language"]][c(200:400)] <- "nl"
+#' corpusLang <- sento_corpus(corpusdf = usnews)
+#'
 #' @export
 sento_corpus <- function(corpusdf, do.clean = FALSE) {
 
@@ -76,11 +86,20 @@ sento_corpus <- function(corpusdf, do.clean = FALSE) {
   dates <- as.Date(corpusdf$date, format = "%Y-%m-%d")
   if (any(is.na(dates))) stop("Some dates are not in appropriate format. Should be 'yyyy-mm-dd'.")
   else corpusdf$date <- dates
+
+  # check if language is provided
+  if ("language" %in% cols) {
+    nonfeatures <- c(nonfeatures, "language")
+    # if (!all(sapply(corpusdf$language, is_iso_language)))
+    #   stop("Not all text contain ISO 639 code. Check ISOcodes::ISO_639_2 for list of available options.")
+  }
+
   features <- cols[!(cols %in% nonfeatures)]
   if (!is_names_correct(features))
     stop("At least one feature's name contains '-'. Please provide proper names.")
-  corpusdf <- corpusdf[, c("id", "date", "texts", features)]
-  info <- "This is a sentocorpus object derived from a quanteda corpus object."
+  corpusdf <- corpusdf[, c(nonfeatures, features)]
+
+  info <- "This is a sento_corpus object derived from a quanteda corpus object."
 
   if (length(features) == 0) {
     corpusdf[["dummyFeature"]] <- 1
@@ -95,14 +114,13 @@ sento_corpus <- function(corpusdf, do.clean = FALSE) {
     if (any(!isNumeric)) {
       toDrop <- names(which(!isNumeric))
       corpusdf[, toDrop] <- NULL
-      warning(paste0("Following feature columns were dropped as they are not numeric: ", paste0(toDrop, collapse = ", "), "."))
+      warning(paste0("Following feature columns are dropped as they are not numeric: ", paste0(toDrop, collapse = ", "), "."))
       if (length(toDrop) == length(isNumeric)) {
         corpusdf[["dummyFeature"]] <- 1
         warning("No remaining feature columns. A 'dummyFeature' feature valued at 1 throughout is added.")
         if (do.clean) corpusdf <- clean_texts(corpusdf)
         corp <- quanteda::corpus(x = corpusdf, docid_field = "id", text_field = "texts", metacorpus = list(info = info))
-        corp$tokens <- NULL
-        class(corp) <- c("sentocorpus", class(corp))
+        class(corp) <- c("sento_corpus", class(corp))
         return(corp)
       }
     }
@@ -122,9 +140,8 @@ sento_corpus <- function(corpusdf, do.clean = FALSE) {
 
   if (do.clean) corpusdf <- clean_texts(corpusdf)
   corp <- quanteda::corpus(x = corpusdf, docid_field = "id", text_field = "texts", metacorpus = list(info = info))
-  corp$tokens <- NULL
-  class(corp) <- c("sentocorpus", class(corp))
-
+  class(corp) <- c("sento_corpus", class(corp))
+  setorder(corp$documents, "date", na.last=FALSE)
   return(corp)
 }
 
@@ -135,54 +152,12 @@ clean_texts <- function(corpusdf) {
   return(corpusdf)
 }
 
-#' Convert a quanteda corpus object into a sentocorpus object
-#'
-#' @author Samuel Borms
-#'
-#' @description Converts a \pkg{quanteda} \code{\link[quanteda]{corpus}} object into a \code{sentocorpus} object, by
-#' adding user-supplied dates and doing proper rearranging.
-#'
-#' @param corpus a quanteda \code{\link[quanteda]{corpus}} object.
-#' @param dates a sequence of dates as \code{"yyyy-mm-dd"}, of the same length as the number of documents
-#' in the input \code{corpus}.
-#' @param do.clean see \code{do.clean} argument from the \code{\link{sento_corpus}} function.
-#'
-#' @return A \code{sentocorpus} object, as returned by the \code{\link{sento_corpus}} function.
-#'
-#' @seealso \code{\link[quanteda]{corpus}}, \code{\link{sento_corpus}}
-#'
-#' @examples
-#' data("usnews", package = "sentometrics")
-#'
-#' # reshuffle usnews data.frame
-#' dates <- usnews$date
-#' usnews$id <- usnews$date <- NULL
-#' usnews$wrong <- "notNumeric"
-#' colnames(usnews)[1] <- "myTexts"
-#'
-#' # set up quanteda corpus object
-#' corpusQ <- quanteda::corpus(usnews, text_field = "myTexts")
-#'
-#' # corpus conversion
-#' corpusS <- to_sentocorpus(corpusQ, dates = dates)
-#'
-#' @export
-to_sentocorpus <- function(corpus, dates, do.clean = FALSE) {
-  if (length(dates) != quanteda::ndoc(corpus))
-    stop("The number of dates in 'dates' should be equal to the number of documents in 'corpus'.")
-  corpusdf <- data.table::as.data.table(corpus$documents)
-  corpusdf[, id := quanteda::docnames(corpus)]
-  corpusdf[, date := dates]
-  setcolorder(corpusdf, c("id", "date", "texts", setdiff(names(corpusdf), c("id", "date", "texts"))))
-  return(sento_corpus(corpusdf, do.clean))
-}
-
 #' Add feature columns to a (sento)corpus object
 #'
 #' @author Samuel Borms
 #'
 #' @description Adds new feature columns, either user-supplied or based on keyword(s)/regex pattern search, to
-#' a provided \code{sentocorpus} or a \pkg{quanteda} \code{\link[quanteda]{corpus}} object.
+#' a provided \code{sento_corpus} or a \pkg{quanteda} \code{\link[quanteda]{corpus}} object.
 #'
 #' @details If a provided feature name is already part of the corpus, it will be replaced. The \code{featuresdf} and
 #' \code{keywords} arguments can be provided at the same time, or only one of them, leaving the other at \code{NULL}. We use
@@ -193,7 +168,7 @@ to_sentocorpus <- function(corpus, dates, do.clean = FALSE) {
 #' expression. For a large corpus and/or complex regex patterns, this function may require some patience. Scaling between 0
 #' and 1 is performed via min-max normalization, per column.
 #'
-#' @param corpus a \code{sentocorpus} object created with \code{\link{sento_corpus}}, or a \pkg{quanteda}
+#' @param corpus a \code{sento_corpus} object created with \code{\link{sento_corpus}}, or a \pkg{quanteda}
 #' \code{\link[quanteda]{corpus}} object.
 #' @param featuresdf a named \code{data.frame} of type \code{numeric} where each columns is a new feature to be added to the
 #' inputted \code{corpus} object. If the number of rows in \code{featuresdf} is not equal to the number of documents
@@ -232,19 +207,19 @@ to_sentocorpus <- function(corpus, dates, do.clean = FALSE) {
 #'                                         war = "war"),
 #'                         do.regex = c(TRUE, TRUE, FALSE))
 #'
-#' sum(corpus3$documents$pres) == sum(corpus4$documents$pres2) # TRUE
+#' sum(quanteda::docvars(corpus3, "pres")) ==
+#'   sum(quanteda::docvars(corpus4, "pres2")) # TRUE
 #'
 #' # adding a complementary feature
-#' nonpres <- data.frame(nonpres = as.numeric(!quanteda::docvars(corpus3)[["pres"]]))
-#' corpus3 <- add_features(corpus3,
-#'                         featuresdf = nonpres)
+#' nonpres <- data.frame(nonpres = as.numeric(!quanteda::docvars(corpus3, "pres")))
+#' corpus3 <- add_features(corpus3, featuresdf = nonpres)
 #'
 #' @export
 add_features <- function(corpus, featuresdf = NULL, keywords = NULL, do.binary = TRUE, do.regex = FALSE) {
   check_class(corpus, "corpus")
 
   classIn <- class(corpus)
-  class(corpus) <- c("corpus", "list") # needed to avoid use of `docvars<-.sentocorpus`() function
+  class(corpus) <- c("corpus", "list") # needed to avoid use of `docvars<-.sento_corpus`() function
 
   if (!is.null(featuresdf)) {
     stopifnot(is.data.frame(featuresdf))
@@ -302,16 +277,16 @@ add_features <- function(corpus, featuresdf = NULL, keywords = NULL, do.binary =
 
 #' @importFrom quanteda docvars<-
 #' @export
-`docvars<-.sentocorpus` <- function(x, field, value) {
+`docvars<-.sento_corpus` <- function(x, field, value) {
   if (!is.null(value)) {
-    stop("To add or replace features, use the add_features() function.", call. = FALSE)
+    stop("To add or replace features in a sento_corpus object, use the add_features() function.", call. = FALSE)
   } else {
     # xNew <- NextMethod("docvars<-")
     xNew <- x
     class(xNew) <- c("corpus", "list")
     quanteda::docvars(xNew, field = field) <- value
     vars <- colnames(quanteda::docvars(xNew))
-    if (!("date" %in% vars)) stop("You cannot remove the 'date' column from a sentocorpus object.", call. = FALSE)
+    if (!("date" %in% vars)) stop("You cannot remove the 'date' column from a sento_corpus object.", call. = FALSE)
     if (length(vars) == 1) {
       xNew <- add_features(xNew, featuresdf = data.frame(dummyFeature = 1))
       warning("No remaining features. A 'dummyFeature' feature valued at 1 throughout is added.", call. = FALSE)
@@ -319,5 +294,222 @@ add_features <- function(corpus, featuresdf = NULL, keywords = NULL, do.binary =
   }
   class(xNew) <- class(x)
   xNew
+}
+
+#' Summarize the sento_corpus object
+#'
+#' @author Jeroen Van Pelt, Samuel Borms, Andres Algaba
+#'
+#' @description Summarizes the \code{sento_corpus} object and returns insights about features and tokens over time.
+#'
+#' @details This function summarizes the \code{sento_corpus} object by generating statistics about features and tokens over
+#' time. The insights can be narrowed down to a chosen set of metadata features. The same tokenization as in the
+#' sentiment calculation in \code{\link{compute_sentiment}} is used.
+#'
+#' @param x is a \code{sento_corpus} object created with \code{\link{sento_corpus}}
+#' @param by a single \code{character} vector to specify the frequency time interval over which the statistics
+#' need to be calculated.
+#' @param features a \code{character} vector that can be used to select a subset of the features to be analysed.
+#'
+#' @return returns a \code{list} containing:
+#' \item{stats}{a \code{data.table} with statistics about the number of documents, total, average, minimum and maximum
+#' number of tokens and the number of texts per features for each date.}
+#' \item{plots}{a \code{list} with three plots representing the above statistics.}
+#'
+#' @examples
+#' data("usnews", package = "sentometrics")
+#'
+#' corpus <- sento_corpus(usnews)
+#'
+#' # summary of corpus by day
+#' summary1 <- corpus_summarize(corpus)
+#'
+#' # summary of corpus by month
+#' summary2 <- corpus_summarize(corpus, by = "month")
+#'
+#' @export
+corpus_summarize <- function(x, by = "day", features = NULL) {
+  check_class(x, "sento_corpus")
+  if (!(by %in% c("year", "month", "week", "day"))) {
+    stop(paste0(by, " is no current 'by' option."))
+  }
+
+  # statistics
+  dt <- data.table(quanteda::docvars(x),
+                   "nTokens" = as.numeric(sapply(tokenize_texts(quanteda::texts(x)), length)))
+
+  if (!is.null(features)) {
+    dt <- dt[, c(features, "date", "nTokens"), with = FALSE]
+  }
+
+  if (by == "year") {
+    dt[, "date" := as.Date(paste0(format(as.Date(date), "%Y"), "-01-01"), "%Y-%m-%d")]
+  } else if (by == "month") {
+    dt[,"date":= as.Date(paste0(format(as.Date(date), "%Y-%m"), "-01"), "%Y-%m-%d")]
+  } else if (by == "week") {
+    dt[, "date" := ISOweek::ISOweek2date(paste(ISOweek::ISOweek(date), 1, sep = "-"))]
+  }
+
+  tokensDT <- dt[, .(date, nTokens)][, .(sum(nTokens), mean(nTokens), min(nTokens), max(nTokens)), by = date]
+  tokensDT <- setnames(tokensDT, c( "date", "totalTokens", "meanTokens", "minTokens", "maxTokens"))
+
+  featuresDT <- dt[, !"nTokens"]
+  freqTexts <- featuresDT[, .("documents" = as.numeric(.N)), by = .(date)]
+  freqFeatures <- featuresDT[, lapply(.SD, function(x) sum(ifelse(x > 0, 1, 0), na.rm = TRUE)), by = date]
+  freqAll <- merge(freqTexts, freqFeatures, by = "date")
+
+  stats <- merge(tokensDT, freqAll, by = "date")
+  setcolorder(stats, c("date", "documents"))
+
+  # plots
+  docPlot <- ggplot(melt(freqAll[, .(date, documents)], id = "date", all = TRUE)) +
+    geom_line(aes(x = date, y = value, color = variable, group = variable)) +
+    ggtitle(paste0("Number of documents over time (by ", by, ")")) +
+    theme_bw() +
+    scale_x_date(name = "Date", date_labels = "%m-%Y") +
+    scale_y_continuous(name = "Count") +
+    plot_theme(legendPos = "none")
+
+  freqAllMelt <- melt(freqAll[, !"documents"], id = "date", all = TRUE)
+  legendPos <- ifelse(length(unique(freqAllMelt[["variable"]])) <= 12, "top", "none")
+  featPlot <- ggplot(freqAllMelt) +
+    geom_line(aes(x = date, y = value, color = variable, group = variable)) +
+    ggtitle(paste0("Feature statistics over time (by ", by, ")")) +
+    theme_bw() +
+    scale_x_date(name = "Date", date_labels = "%m-%Y") +
+    scale_y_continuous(name = "Count") +
+    plot_theme(legendPos)
+
+  tokPlot <- ggplot(melt(tokensDT[, !"totalTokens"], id = "date", all = TRUE)) +
+    geom_line(aes(x = date, y = value, color = variable, group = variable)) +
+    ggtitle(paste0("Token statistics over time (by ", by, ")")) +
+    theme_bw() +
+    scale_x_date(name = "Date", date_labels = "%m-%Y") +
+    scale_y_continuous(name = "Count") +
+    plot_theme(legendPos = "top")
+
+  # output
+  summary <- list(
+    stats = stats,
+    plots = list(doc_plot = docPlot, feature_plot = featPlot, token_plot = tokPlot)
+  )
+  return(summary)
+}
+
+#' @export
+as.sento_corpus.corpus <- function(x, dates = NULL, do.clean = FALSE) {
+  features <- quanteda::docvars(x)
+  if (is.null(dates)) {
+    if (!("date" %in% colnames(features))) {
+      stop("There is no 'date' metadata element in the corpus and 'dates' = NULL.")
+    }
+  } else {
+    if (length(dates) != quanteda::ndoc(x))
+      stop("The number of dates in 'dates' should be equal to the number of documents.")
+    features$date <- dates # avoids accidental duplication
+  }
+  dt <- data.table("id" = quanteda::docnames(x),
+                   "texts" = quanteda::texts(x),
+                   features) # includes date column
+  setcolorder(dt, c("id", "date", "texts"))
+  sento_corpus(dt, do.clean)
+}
+
+#' @export
+as.sento_corpus.VCorpus <- function(x, dates = NULL, do.clean = FALSE) {
+  texts <- unlist(lapply(x, "[", "content"))
+  hasLocalDate <- all(sapply(x, function(d) !is.null(NLP::meta(d, "date", type = "local"))))
+  to_sento_corpus_tm(x, dates, do.clean, texts, hasLocalDate)
+}
+
+#' @export
+as.sento_corpus.SimpleCorpus <- function(x, dates = NULL, do.clean = FALSE) {
+  texts <- as.character(as.list(x))
+  to_sento_corpus_tm(x, dates, do.clean, texts)
+}
+
+to_sento_corpus_tm <- function(x, dates, do.clean, texts, hasLocalDate = FALSE) {
+  features <- NLP::meta(x, type = "indexed")
+  if (length(x) != length(texts)) {
+    stop("The input corpus does not have a single 'content' character vector per corpus element.")
+  }
+  if (is.null(dates)) {
+    if (hasLocalDate == FALSE && !("date" %in% colnames(features))) {
+      stop("There is no 'date' metadata element in the corpus and 'dates' = NULL.")
+    } else if (hasLocalDate == TRUE && !("date" %in% colnames(features))) {
+      features$date <- do.call("c", NLP::meta(x, "date"))
+    }
+  } else {
+    if (length(dates) != length(x))
+      stop("The number of dates in 'dates' should be equal to the number of documents.")
+    features$date <- dates
+  }
+  dt <- data.table("id" = unlist(NLP::meta(x, "id")),
+                   "texts" = texts,
+                   features) # includes date column
+  setcolorder(dt, c("id", "date", "texts"))
+  sento_corpus(dt, do.clean)
+}
+
+#' Convert a quanteda or tm corpus object into a sento_corpus object
+#'
+#' @author Samuel Borms
+#'
+#' @description Converts most common \pkg{quanteda} and \pkg{tm} corpus objects into a
+#' \code{sento_corpus} object. Appropriate available metadata is integrated as features;
+#' for a \pkg{quanteda} corpus, this can come from \code{docvars(x)}, for a \pkg{tm} corpus,
+#' only \code{meta(x, type = "indexed")} metadata is considered.
+#'
+#' @param x a \pkg{quanteda} \code{\link[quanteda]{corpus}} object, a \pkg{tm}
+#' \code{\link[tm]{SimpleCorpus}} or a \pkg{tm} \code{\link[tm]{VCorpus}} object. For \pkg{tm}
+#' corpora, every corpus element should consist of a single \code{"content"} \code{character} vector
+#' as the document unit.
+#' @param dates an optional sequence of dates as \code{"yyyy-mm-dd"}, of the same length as the number
+#' of documents in the input corpus, to define the \code{"date"} column. If \code{dates = NULL}, the
+#' \code{"date"} metadata element in the input corpus, if available, will be used but should be in the
+#' same \code{"yyyy-mm-dd"} format.
+#' @param do.clean see \code{\link{sento_corpus}}.
+#'
+#' @return A \code{sento_corpus} object, as returned by the \code{\link{sento_corpus}} function.
+#'
+#' @seealso \code{\link[quanteda]{corpus}}, \code{\link[tm]{SimpleCorpus}}, \code{\link[tm]{VCorpus}},
+#' \code{\link{sento_corpus}}
+#'
+#' @examples
+#' data("usnews", package = "sentometrics")
+#' txt <- system.file("texts", "txt", package = "tm")
+#' reuters <- system.file("texts", "crude", package = "tm")
+#'
+#' # reshuffle usnews data.frame for use in quanteda and tm
+#' dates <- usnews$date
+#' usnews$wrong <- "notNumeric"
+#' colnames(usnews)[c(1, 3)] <- c("doc_id", "text")
+#'
+#' # conversion from a quanteda corpus
+#' qcorp <- quanteda::corpus(usnews,
+#'                           text_field = "text", docid_field = "doc_id")
+#' corp1 <- as.sento_corpus(qcorp)
+#' corp2 <- as.sento_corpus(qcorp, sample(dates)) # overwrites "date" column
+#'
+#' # conversion from a tm SimpleCorpus corpus (DataframeSource)
+#' tmSCdf <- tm::SimpleCorpus(tm::DataframeSource(usnews))
+#' corp3 <- as.sento_corpus(tmSCdf)
+#'
+#' # conversion from a tm SimpleCorpus corpus (DirSource)
+#' tmSCdir <- tm::SimpleCorpus(tm::DirSource(txt))
+#' corp4 <- as.sento_corpus(tmSCdir, dates[1:length(tmSCdir)])
+#'
+#' # conversion from a tm VCorpus corpus (DataframeSource)
+#' tmVCdf <- tm::VCorpus(tm::DataframeSource(usnews))
+#' corp5 <- as.sento_corpus(tmVCdf)
+#'
+#' # conversion from a tm VCorpus corpus (DirSource)
+#' tmVCdir <- tm::VCorpus(tm::DirSource(reuters),
+#'                        list(reader = tm::readReut21578XMLasPlain))
+#' corp6 <- as.sento_corpus(tmVCdir, dates[1:length(tmVCdir)])
+#'
+#' @export
+as.sento_corpus <- function(x, dates = NULL, do.clean = FALSE) {
+  UseMethod("as.sento_corpus", x)
 }
 

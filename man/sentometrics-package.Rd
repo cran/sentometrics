@@ -10,7 +10,7 @@ The \pkg{sentometrics} package is an integrated framework for textual sentiment 
 aggregation and prediction. It accounts for the intrinsic challenge that, for a given text, sentiment can
 be computed in many different ways, as well as the large number of possibilities to pool sentiment across
 texts and time. This additional layer of manipulation does not exist in standard text mining and time series
-analysis packages. The package therefore integrates the fast \emph{qualification} of sentiment from texts,
+analysis packages. The package therefore integrates the fast \emph{quantification} of sentiment from texts,
 the \emph{aggregation} into different sentiment time series and the optimized \emph{prediction} based on
 these measures.
 }
@@ -20,23 +20,23 @@ Please cite the package in publications. Use \code{citation("sentometrics")}.
 \section{Main functions}{
 
 \itemize{
-\item Corpus features generation: \code{\link{sento_corpus}}, \code{\link{add_features}}
+\item Corpus (features) generation: \code{\link{sento_corpus}}, \code{\link{add_features}},
+\code{\link{as.sento_corpus}}
 \item Sentiment computation and aggregation into sentiment measures: \code{\link{ctr_agg}},
 \code{\link{sento_lexicons}}, \code{\link{compute_sentiment}}, \code{\link{aggregate.sentiment}},
-\code{\link{sento_measures}}, \code{\link{peakdocs}}, \code{\link{peakdates}}, and a series of 
-\code{measures_xyz}, generic and extractor functions
+\code{\link{peakdocs}}, \code{\link{sento_measures}}, \code{\link{peakdates}},
+\code{\link{aggregate.sento_measures}}, and a series of manipulation functions
 \item Sparse modelling: \code{\link{ctr_model}}, \code{\link{sento_model}}
-\item Prediction and post-modelling analysis: \code{\link{predict.sentomodel}}, \code{\link{attributions}}
-}
+\item Prediction and post-modelling analysis: \code{\link{predict.sento_model}}, \code{\link{attributions}}
 }
 
-\section{Update}{
-
-The development version of the package resides at \url{https://github.com/sborms/sentometrics}.
+The \code{\link{sento_app}} function is a Shiny interface for fast document-level sentiment computation
+and aggregation, and downloading of the obtained values. It serves as a visualisation of part of what the
+package does.
 }
 
 \references{
-Ardia, Bluteau and Boudt (2018). ``Questioning the news about economic growth: Sparse forecasting using
+Ardia, Bluteau and Boudt (2019). ``Questioning the news about economic growth: Sparse forecasting using
 thousands of news-based sentiment values''. \emph{International Journal of Forecasting, forthcoming},
 \url{https://doi.org/10.2139/ssrn.2976084}.
 
@@ -59,6 +59,12 @@ Authors:
   \item David Ardia \email{david.ardia@unine.ch}
   \item Keven Bluteau \email{keven.bluteau@unine.ch}
   \item Kris Boudt \email{kris.boudt@vub.be}
+}
+
+Other contributors:
+\itemize{
+  \item Jeroen Van Pelt \email{jeroenvanpelt@hotmail.com} [contributor]
+  \item Andres Algaba \email{andres.algaba@vub.be} [contributor]
 }
 
 }

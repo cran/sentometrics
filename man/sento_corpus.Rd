@@ -2,39 +2,40 @@
 % Please edit documentation in R/sentocorpus.R
 \name{sento_corpus}
 \alias{sento_corpus}
-\title{Create a sentocorpus object}
+\title{Create a sento_corpus object}
 \usage{
 sento_corpus(corpusdf, do.clean = FALSE)
 }
 \arguments{
 \item{corpusdf}{a \code{data.frame} (or a \code{data.table}, or a \code{tbl}) with as named columns: a document \code{"id"}
-column (in \code{character} mode), a \code{"date"} column (as \code{"yyyy-mm-dd"}), a \code{"texts"} column (in
-\code{character} mode), and a series of feature columns of type \code{numeric}, with values between 0 and 1 to specify the
-degree of connectedness of a feature to a document. Features could be topics (e.g., legal or economic),
-article sources (e.g., online or print), amongst many more options. When no feature column is provided, a
-feature named \code{"dummyFeature"} is added. All spaces in the names of the features are replaced by \code{'_'}. Feature
-columns with values not between 0 and 1 are rescaled column-wise.}
+column (in \code{character} mode), a \code{"date"} column (as \code{"yyyy-mm-dd"}), a \code{"texts"} column
+(in \code{character} mode), an optional \code{"language"} column (in \code{character} mode), and a series of
+feature columns of type \code{numeric}, with values between 0 and 1 to specify the degree of connectedness of
+a feature to a document. Features could be for instance topics (e.g., legal or economic) or article sources (e.g., online or
+print). When no feature column is provided, a feature named \code{"dummyFeature"}
+is added. All spaces in the names of the features are replaced by \code{'_'}. Feature columns with values not
+between 0 and 1 are rescaled column-wise.}
 
 \item{do.clean}{a \code{logical}, if \code{TRUE} all texts undergo a cleaning routine to eliminate common textual garbage.
 This includes a brute force replacement of HTML tags and non-alphanumeric characters by an empty string. To use with care
 if the text is meant to have non-alphanumeric characters! Preferably, cleaning is done outside of this function call.}
 }
 \value{
-A \code{sentocorpus} object, derived from a \pkg{quanteda} \code{\link[quanteda]{corpus}} classed \code{list}
+A \code{sento_corpus} object, derived from a \pkg{quanteda} \code{\link[quanteda]{corpus}} classed \code{list}
 with elements \code{"documents"}, \code{"metadata"}, and \code{"settings"} kept. The first element incorporates
 the corpus represented as a \code{data.frame}.
 }
 \description{
-Formalizes a collection of texts into a well-defined corpus object derived from the
-\code{\link[quanteda]{corpus}} object. The \pkg{quanteda} package provides a robust text mining infrastructure,
-see \href{http://quanteda.io/index.html}{quanteda}. Their corpus structure brings for example a
-handy corpus manipulation toolset. This function performs a set of checks on the input data and prepares the
-corpus for further analysis.
+Formalizes a collection of texts into a \code{sento_corpus} object derived from the \pkg{quanteda}
+\code{\link[quanteda]{corpus}} object. The \pkg{quanteda} package provides a robust text mining infrastructure
+(see \href{http://quanteda.io/index.html}{quanteda}), including a handy corpus manipulation toolset. This function
+performs a set of checks on the input data and prepares the corpus for further analysis by structurally
+integrating a date dimension and numeric metadata features.
 }
 \details{
-A \code{sentocorpus} object is a specialized instance of a \pkg{quanteda} \code{\link[quanteda]{corpus}}. Any
-\pkg{quanteda} function applicable to its \code{\link[quanteda]{corpus}} object can also be applied to a \code{sentocorpus}
-object. However, changing a given \code{sentocorpus} object too drastically using some of \pkg{quanteda}'s functions might
+A \code{sento_corpus} object is a specialized instance of a \pkg{quanteda} \code{\link[quanteda]{corpus}}. Any
+\pkg{quanteda} function applicable to its \code{\link[quanteda]{corpus}} object can also be applied to a \code{sento_corpus}
+object. However, changing a given \code{sento_corpus} object too drastically using some of \pkg{quanteda}'s functions might
 alter the very structure the corpus is meant to have (as defined in the \code{corpusdf} argument) to be able to be used as
 an input in other functions of the \pkg{sentometrics} package. There are functions, including
 \code{\link[quanteda]{corpus_sample}} or \code{\link[quanteda]{corpus_subset}}, that do not change the actual corpus
@@ -42,6 +43,10 @@ structure and may come in handy. To add additional features, use \code{\link{add
 a mechanism to select the texts which have to be integrated in the respective feature-based sentiment measure(s), but
 applies only when \code{do.ignoreZeros = TRUE}. Because of this (implicit) selection that can be performed, having
 complementary features (e.g., \code{"economy"} and \code{"noneconomy"}) makes sense.
+
+It is also possible to add one non-numerical feature, that is, \code{"language"}, to designate the language
+of the corpus texts. When this feature is provided on corpus-level, a list of lexicons for different
+languages is expected in the function \code{compute_sentiment}.
 }
 \examples{
 data("usnews", package = "sentometrics")
@@ -64,6 +69,11 @@ quanteda::docvars(corp, field = c("wsj", "new")) <- 1}
 
 # corpus creation when no features are present
 corpusDummy <- sento_corpus(corpusdf = usnews[, 1:3])
+
+# corpus creation with a qualitative language feature
+usnews[["language"]] <- "en"
+usnews[["language"]][c(200:400)] <- "nl"
+corpusLang <- sento_corpus(corpusdf = usnews)
 
 }
 \seealso{

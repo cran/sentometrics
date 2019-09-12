@@ -1,7 +1,18 @@
 
+## sentometrics 0.7.0
+
+- new functions: `measures_update()`, `subset.sento_measures()`, `as.sentiment()`, `as.sento_measures()`, `as.data.table.sentiment()`, `corpus_summarize()`, `sento_app()`, and `aggregate.sento_measures()`
+- defunct all deprecated functions as well as the functions replaced by the new functions (_wiping the slate clean..._) 
+- handled reverse dependency issue raised by **quanteda** developers regarding their new corpus object
+- renamed the class objects coming from any `sento_xyz()` function into the name of the function (e.g., the `sento_measures()` function now gives a `sento_measures` object instead of a `sentomeasures` object)
+- fixed a small bug in the `aggregate.sento_measures()` (previously `measures_merge()`) function to take the mean instead of the sum in a particular case
+- added many more within- and across-document weighting schemes (see the `get_hows()` function for an overview)
+- added the flexibility to do an explicit sentence-by-sentence sentiment computation (see `do.sentence` argument in the `compute_sentiment()` function)
+- expanded the `compute_sentiment()` function to also take **`tm`** `SimpleCorpus` and `VCorpus` objects
+
 ## sentometrics 0.5.6
 
-- new functions: `peakdates()`
+- new function: `peakdates()`
 - modified the purpose of the `peakdocs()` function and added a `peakdates()` function to properly handle the entire functionality of extracting peaks 
 - a series of documentation fixes
 
@@ -45,7 +56,7 @@
 - expanded set of unit tests, included a coverage badge, and added **`covr`** to Suggests
 - reimplementation (and improved documentation) of the sentiment calculation in the `compute_sentiment()` function, by writing part of the code in **`Rcpp`** relying on **`RcppParallel`** (added to Imports); there are now three approaches to computing sentiment (unigrams, bigrams and clusters)
 - replaced the `dfm` argument in the `compute_sentiment()` and `ctr_agg()` functions by a `tokens` argument, and altered the input and behaviour of the `nCore` argument in these same two functions
-- switched from the **`quanteda`** package to the **`stringi`** package for more direct tokenisation
+- switched from the **`quanteda`** package to the **`stringi`** package for more direct tokenization
 - trimmed the `list_lexicons` and `list_valence_shifters` built-in word lists by keeping only unigrams, and included same trimming procedure in the `sento_lexicons()` function
 - added a type column `"t"` to the `list_valence_shifters` built-in word list, and reset values of the `"y"` column from 2 to 1.8 and from 0.5 to 0.2
 - updated the `epu` built-in dataset with the newest available series, up to July 2018
@@ -87,7 +98,7 @@
 
 - new functions: `diff()`, `extract_peakdocs()`, and `subset_measures()` 
 - modified R Depends from 3.4.2 to 3.3.0, and omitted import of **`sentimentr`**
-- word count per document now determined based on a separate tokenisation
+- word count per document now determined based on a separate tokenization
 - improved valence shifters search (modified `incluce_valence()` helper function)
 - new option added for within-document aggregation (`"proportionalPol"`)
 - now correct pass-through of `dfm` argument in `ctr_agg()`

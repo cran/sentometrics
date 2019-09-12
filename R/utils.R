@@ -25,7 +25,8 @@ weights_exponential <- function(n, alphas = seq(0.1, 0.5, by = 0.1)) {
   for (i in 1:length(alphas)) {
     alpha <- alphas[i]
     exponential <- ((alpha * (1 - alpha)^(1 - vals))) / sum((alpha * (1 - alpha)^(1 - vals)))
-    exponentials[, i] <- exponential
+    exponentials[, i] <-exponential
+
   }
   return(as.data.frame(exponentials))
 }
@@ -123,9 +124,8 @@ weights_beta <- function(n, a = 1:4, b = 1:4) {
   return(as.data.frame(betas))
 }
 
-setup_time_weights <- function(lag, how, ...) {
-  dots <- tryCatch(list(...)[[1]], # extract list from list of list (if ... is a list)
-                   error = function(x) list(...)) # if ... is empty
+setup_time_weights <- function(how, param) {
+  lag <- param$lag
   if (!all(how %in% get_hows()$time)) stop("Please select an appropriate aggregation 'how'.")
   weights <- data.frame(row.names = 1:lag)
   if ("equal_weight" %in% how) {
@@ -135,16 +135,16 @@ setup_time_weights <- function(lag, how, ...) {
     weights <- cbind(weights, data.frame(linear = matrix((1:lag)/sum(1:lag), nrow = lag, ncol = 1)))
   }
   if ("exponential" %in% how) {
-    weights <- cbind(weights, weights_exponential(lag, dots$alphasExp))
+    weights <- cbind(weights, weights_exponential(lag, param$alphasExp))
   }
   if ("almon" %in% how) {
-    weights <- cbind(weights, weights_almon(lag, dots$ordersAlm, dots$do.inverseAlm, TRUE)) # always normalize
+    weights <- cbind(weights, weights_almon(lag, param$ordersAlm, param$do.inverseAlm, TRUE)) # always normalize
   }
   if ("beta" %in% how) {
-    weights <- cbind(weights, weights_beta(lag, dots$aBeta, dots$bBeta))
+    weights <- cbind(weights, weights_beta(lag, param$aBeta, param$bBeta))
   }
   if ("own" %in% how) {
-    weights <- cbind(weights, dots$weights)
+    weights <- cbind(weights, param$weights)
   }
   return(weights)
 }
@@ -164,8 +164,10 @@ setup_time_weights <- function(lag, how, ...) {
 #'
 #' @export
 get_hows <- function() {
-  words <- c("proportional", "proportionalPol", "counts")
-  docs <- c("equal_weight", "proportional")
+  words <- c("proportional", "proportionalPol", "counts", "squareRootCounts", "UShaped",
+             "invertedUShaped", "exponential", "invertedExponential", "TF", "logarithmicTF",
+             "augmentedTF", "IDF", "TFIDF", "logarithmicTFIDF", "augmentedTFIDF")
+  docs <- c("equal_weight", "proportional", "inverseProportional", "exponential", "inverseExponential")
   time <- c("equal_weight", "almon", "beta", "linear", "exponential", "own")
   return(list(words = words, docs = docs, time = time))
 }
@@ -186,7 +188,7 @@ create_cv_slices <- function (y, trainWindow, testWindow = 1, skip = 0, do.rever
   return(list(train = train, test = test))
 }
 
-align_variables <- function(y, sentomeasures, x, h, difference, i = 1, nSample = NULL) {
+align_variables <- function(y, sento_measures, x, h, difference, i = 1, nSample = NULL) {
 
   if (is.factor(y)) {
     levs <- levels(y)
@@ -203,8 +205,8 @@ align_variables <- function(y, sentomeasures, x, h, difference, i = 1, nSample =
     row.names(y) <- NULL
   }
 
-  datesX <- get_dates(sentomeasures)
-  sent <- get_measures(sentomeasures)[, -1] # drop dates
+  datesX <- get_dates(sento_measures)
+  sent <- as.data.table(sento_measures)[, -1] # drop dates
   if (is.null(x)) x <- sent
   else x <- cbind(sent, x)
   x <- as.matrix(x)
@@ -261,41 +263,41 @@ clean_panel <- function(x, nx, threshold = 0.50) {
   return(list(xNew = xNew, discarded = toDiscard))
 }
 
-update_info <- function(sentomeasures, newMeasures, ...) {
-  check_class(sentomeasures, "sentomeasures")
+update_info <- function(sento_measures, newMeasures, ...) {
+  check_class(sento_measures, "sento_measures")
   n <- ncol(newMeasures)
   newNames <- stringi::stri_split(colnames(newMeasures), regex = "--")[-1] # drop first element (date column)
-  sentomeasures$measures <- newMeasures
-  sentomeasures$lexicons <- unique(sapply(newNames, "[", 1))
-  sentomeasures$features <- unique(sapply(newNames, "[", 2))
-  sentomeasures$time <- unique(sapply(newNames, "[", 3))
-  sentomeasures$stats <- compute_stats(sentomeasures) # measures in sentomeasures are already updated by here
-  sentomeasures$attribWeights <- update_attribweights(sentomeasures, ...)
-  return(sentomeasures)
+  sento_measures$measures <- newMeasures
+  sento_measures$lexicons <- unique(sapply(newNames, "[", 1))
+  sento_measures$features <- unique(sapply(newNames, "[", 2))
+  sento_measures$time <- unique(sapply(newNames, "[", 3))
+  sento_measures$stats <- compute_stats(sento_measures) # measures in sento_measures are already updated by here
+  sento_measures$attribWeights <- update_attribweights(sento_measures, ...)
+  return(sento_measures)
 }
 
-update_attribweights <- function(sentomeasures, ...) {
-  attribWeights <- sentomeasures$attribWeights
-  dims <- get_dimensions(sentomeasures)
+update_attribweights <- function(sento_measures, ...) {
+  attribWeights <- sento_measures$attribWeights
+  dims <- get_dimensions(sento_measures)
   dots <- list(...)
-  toMerge <- dots$merges
+  toAgg <- dots$aggs
 
   B <- attribWeights[["B"]]
   W <- attribWeights[["W"]]
 
   lexFeats <- unique(
-    sapply(stringi::stri_split(colnames(get_measures(sentomeasures))[-1], regex = "--"),
+    sapply(stringi::stri_split(colnames(as.data.table(sento_measures))[-1], regex = "--"),
            function(x) paste0(x[1:2], collapse = "--"))
   )
 
-  if (!is.null(toMerge)) {
-    for (t in seq_along(toMerge[["time"]])) {
-      tt <- toMerge[["time"]][t]
+  if (!is.null(toAgg)) {
+    for (t in seq_along(toAgg[["time"]])) {
+      tt <- toAgg[["time"]][t]
       B[, names(tt)] <- rowMeans(B[, unlist(tt)])
     }
     lexs <- unique(sapply(stringi::stri_split(colnames(W)[-c(1:2)], regex = "--"), "[", 1))
-    for (f in seq_along(toMerge[["features"]])) {
-      ff <- toMerge[["features"]][f]
+    for (f in seq_along(toAgg[["features"]])) {
+      ff <- toAgg[["features"]][f]
       for (l in lexs) {
         cols <- paste0(l, "--", unlist(ff))
         WW <- W[, c("date", cols), with = FALSE]
@@ -304,8 +306,8 @@ update_attribweights <- function(sentomeasures, ...) {
       }
     }
     feats <- unique(sapply(stringi::stri_split(colnames(W)[-c(1:2)], regex = "--"), "[", 2)) # updated columns
-    for (l in seq_along(toMerge[["lexicons"]])) {
-      ll <- toMerge[["lexicons"]][l]
+    for (l in seq_along(toAgg[["lexicons"]])) {
+      ll <- toAgg[["lexicons"]][l]
       for (f in feats) {
         cols <- paste0(unlist(ll), "--", f)
         WW <- W[, c("date", cols), with = FALSE]
@@ -315,7 +317,7 @@ update_attribweights <- function(sentomeasures, ...) {
     }
   }
 
-  newB <- B[, sentomeasures$time, drop = FALSE]
+  newB <- B[, sento_measures$time, drop = FALSE]
   newW <- W[, c("id", "date", lexFeats), with = FALSE]
   for (col in lexFeats) set(newW, which(is.nan(newW[[col]])), col, NA) # convert NaN to NA
 
@@ -324,11 +326,11 @@ update_attribweights <- function(sentomeasures, ...) {
 
 check_class <- function(x, class) {
   if (!inherits(x, class))
-    stop("Please provide a ", class, " object as one of the arguments.")
+    stop("Please provide a ", class, " object as argument.")
 }
 
-compute_stats <- function(sentomeasures) {
-  measures <- get_measures(sentomeasures)[, -1] # drop dates
+compute_stats <- function(sento_measures) {
+  measures <- as.data.table(sento_measures)[, -1] # drop dates
   names <- c("mean", "sd", "max", "min", "meanCorr")
   stats <- data.frame(matrix(NA, nrow = length(names), ncol = length(measures), dimnames = list(names)))
   colnames(stats) <- colnames(measures)
@@ -474,5 +476,11 @@ plot_theme <- function(legendPos) { # plotting specifications (border and grid)
     panel.grid.minor = element_line(colour = "grey95", size = 0.10),
     plot.margin = unit(c(0.20, 0.40, 0.20, 0.20), "cm")
   )
+}
+
+pdf_manual <- function(pkg = "sentometrics") {
+  setwd("..")
+  shell(paste0('R CMD Rd2pdf --encoding=UTF-8 ', pkg))
+  setwd(paste0(getwd(), "/", pkg))
 }
 

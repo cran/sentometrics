@@ -2,40 +2,36 @@
 % Please edit documentation in R/sentomeasures_main.R
 \name{sento_measures}
 \alias{sento_measures}
-\title{One-way road towards a sentomeasures object}
+\title{One-way road towards a sento_measures object}
 \usage{
-sento_measures(sentocorpus, lexicons, ctr)
+sento_measures(sento_corpus, lexicons, ctr)
 }
 \arguments{
-\item{sentocorpus}{a \code{sentocorpus} object created with \code{\link{sento_corpus}}.}
+\item{sento_corpus}{a \code{sento_corpus} object created with \code{\link{sento_corpus}}.}
 
 \item{lexicons}{a \code{sentolexicons} object created with \code{\link{sento_lexicons}}.}
 
 \item{ctr}{output from a \code{\link{ctr_agg}} call.}
 }
 \value{
-A \code{sentomeasures} object, which is a \code{list} containing:
+A \code{sento_measures} object, which is a \code{list} containing:
 \item{measures}{a \code{data.table} with a \code{"date"} column and all textual sentiment measures as remaining columns.}
 \item{features}{a \code{character} vector of the different features.}
 \item{lexicons}{a \code{character} vector of the different lexicons used.}
 \item{time}{a \code{character} vector of the different time weighting schemes used.}
-\item{by}{a single \code{character} vector specifying the time interval of aggregation used.}
 \item{stats}{a \code{data.frame} with a series of elementary statistics (mean, standard deviation, maximum, minimum, and
 average correlation with all other measures) for each individual sentiment measure.}
-\item{sentiment}{the sentiment scores \code{data.table} with \code{"date"}, \code{"word_count"} and lexicon--feature
-sentiment scores columns. The \code{"date"} column has the dates converted at the frequency for
-across-document aggregation. All zeros are replaced by \code{NA} if \code{ctr$do.ignoreZeros = TRUE}.}
-\item{howDocs}{a single \code{character} vector to remind how sentiment across documents was aggregated.}
-\item{fill}{a single \code{character} vector that specifies if and how missing dates have been added before
-aggregation across time was carried out.}
-\item{do.ignoreZeros}{a single \code{character} vector to remind if documents with a zero feature-sentiment score
-have been ignored in the within-document aggregation.}
+\item{sentiment}{the document-level sentiment scores \code{data.table} with \code{"date"},
+\code{"word_count"} and lexicon-feature sentiment scores columns. The \code{"date"} column has the
+dates converted at the frequency for across-document aggregation. All zeros are replaced by \code{NA}
+if \code{ctr$docs$weightingParam$do.ignoreZeros = TRUE}.}
 \item{attribWeights}{a \code{list} of document and time weights used in the \code{\link{attributions}} function.
 Serves further no direct purpose.}
+\item{ctr}{a \code{list} encapsulating the control parameters.}
 }
 \description{
 Wrapper function which assembles calls to \code{\link{compute_sentiment}} and \code{\link{aggregate}}.
-Serves as the most direct way towards a panel of textual sentiment measures as a \code{sentomeasures} object.
+Serves as the most direct way towards a panel of textual sentiment measures as a \code{sento_measures} object.
 }
 \details{
 As a general rule, neither the names of the features, lexicons or time weighting schemes may contain
@@ -46,7 +42,7 @@ data("usnews", package = "sentometrics")
 data("list_lexicons", package = "sentometrics")
 data("list_valence_shifters", package = "sentometrics")
 
-# construct a sentomeasures object to start with
+# construct a sento_measures object to start with
 corpus <- sento_corpus(corpusdf = usnews)
 corpusSample <- quanteda::corpus_sample(corpus, size = 500)
 l <- sento_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
@@ -57,12 +53,12 @@ ctr <- ctr_agg(howWithin = "counts",
                lag = 3,
                ordersAlm = 1:3,
                do.inverseAlm = TRUE)
-sentomeasures <- sento_measures(corpusSample, l, ctr)
-summary(sentomeasures)
+sento_measures <- sento_measures(corpusSample, l, ctr)
+summary(sento_measures)
 
 }
 \seealso{
-\code{\link{compute_sentiment}}, \code{\link{aggregate}}
+\code{\link{compute_sentiment}}, \code{\link{aggregate}}, \code{\link{measures_update}}
 }
 \author{
 Samuel Borms, Keven Bluteau

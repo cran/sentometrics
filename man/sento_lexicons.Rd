@@ -14,17 +14,17 @@ one of the built-in lexicons accessible via \code{list_lexicons}.}
 \item{valenceIn}{a single valence word list as a \code{data.table} or a \code{data.frame} with respectively a \code{"x"}
 and a \code{"y"} or \code{"t"} column. The first column has the words, \code{"y"} has the values for bigram
 shifting, and \code{"t"} has the types of the valence shifter for a clustered approach to sentiment calculation
-(supported types: \code{1} = negators, \code{2} = amplifiers, \code{3} = deamplifiers). If three columns
-are provided, the first two will be considered only. This argument can be one of the built-in
-valence word lists accessible via \code{list_valence_shifters}. A word that appears in both a lexicon
-and the valence word list is prioritized as a lexical entry during sentiment calculation. If \code{NULL}, valence
-shifting is not applied in the sentiment analysis.}
+(supported types: \code{1} = negators, \code{2} = amplifiers, \code{3} = deamplifiers, \code{4} = adversative conjunctions).
+If three columns are provided, the first two will be considered only. This argument can be one of the
+built-in valence word lists accessible via \code{list_valence_shifters}. A word that appears in both a
+lexicon and the valence word list is prioritized as a lexical entry during sentiment calculation. If
+\code{NULL}, valence shifting is not applied in the sentiment analysis.}
 
 \item{do.split}{a \code{logical} that if \code{TRUE} splits every lexicon into a separate positive polarity and negative
 polarity lexicon.}
 }
 \value{
-A \code{list} of class \code{sentolexicons} with each lexicon as a separate element according to its name, as a
+A \code{list} of class \code{sento_lexicons} with each lexicon as a separate element according to its name, as a
 \code{data.table}, and optionally an element named \code{valence} that comprises the valence words. Every \code{"x"} column
 contains the words, every \code{"y"} column contains the polarity scores. The \code{"t"} column for valence shifters
 contains the different types.
@@ -51,7 +51,7 @@ l2 <- sento_lexicons(lexIn)
 l3 <- sento_lexicons(lexIn, valIn)
 l4 <- sento_lexicons(lexIn, valIn[, c("x", "y")], do.split = TRUE)
 l5 <- sento_lexicons(lexIn, valIn[, c("x", "t")], do.split = TRUE)
-l6 <- l5[c("GI_en_POS", "valence")] # preserves sentolexicons class
+l6 <- l5[c("GI_en_POS", "valence")] # preserves sento_lexicons class
 
 \dontrun{
 # include lexicons from lexicon package

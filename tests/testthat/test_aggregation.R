@@ -9,18 +9,21 @@ set.seed(123)
 # corpus, lexicon and aggregation control creation
 data("usnews")
 corpus <- quanteda::corpus_sample(sento_corpus(corpusdf = usnews), size = 1000)
-
+setorder(corpus$documents, "date", na.last=FALSE)
 data("list_lexicons")
 lex <- sento_lexicons(list_lexicons[c("GI_en", "LM_en")])
+lexClust <- sento_lexicons(list_lexicons[c("GI_en", "LM_en", "HENRY_en")],
+                           list_valence_shifters[["en"]][, c("x", "t")])
 
 ### tests from here ###
 
 ctr1 <- ctr_agg(howWithin = "proportionalPol", howDocs = "equal_weight", howTime = "almon", by = "month",
-               lag = 5, ordersAlm = 1:3, do.inverseAlm = TRUE)
+                lag = 5, ordersAlm = 1:3, do.inverseAlm = TRUE)
 sentMeas1 <- sento_measures(corpus, lex, ctr1)
 
-ctr2 <- ctr_agg(howWithin = "counts", howDocs = "proportional", howTime = c("equal_weight", "linear", "own"), by = "year",
-               lag = 2, weights = data.frame(q1 = c(0.25, 0.75), q3 = c(0.75, 0.25)), do.ignoreZeros = FALSE)
+ctr2 <- ctr_agg(howWithin = "counts", howDocs = "proportional", howTime = c("equal_weight", "linear", "own"),
+                by = "year", lag = 2, weights = data.frame(q1 = c(0.25, 0.75), q3 = c(0.75, 0.25)),
+                do.ignoreZeros = FALSE, do.sentence = TRUE)
 sentMeas2 <- sento_measures(corpus, lex, ctr2)
 
 ctr3 <- ctr_agg(howWithin = "counts", howDocs = "proportional", howTime = c("equal_weight", "linear", "own"), by = "year",
@@ -43,14 +46,22 @@ test_that("Aggregation control function breaks when wrong inputs supplied", {
   expect_warning(ctr_agg(howTime = c("linear", "beta"), lag = 1))
 })
 
-# aggregate
+# aggregate.sentiment
 s1 <- compute_sentiment(corpus, lex, how = "proportional")
 s2 <- compute_sentiment(quanteda::texts(corpus), lex, how = "counts")
-test_that("Test input format of sentiment aggregation function", {
+s3 <- compute_sentiment(corpus, lexClust, how = "squareRootCounts", do.sentence = TRUE)
+sentimentAgg <- aggregate(s3, ctr_agg(lag = 7), do.full = FALSE)
+wc <- cbind(sentimentAgg[, "word_count"], s1[, "word_count"])
+test_that("Test input and output of sentiment aggregation function", {
   expect_true(inherits(s1, "sentiment"))
-  expect_true(inherits(aggregate(s1, ctr1), "sentomeasures"))
+  expect_true(inherits(s2, "data.table"))
+  expect_true(inherits(s3, "sentiment"))
+  expect_true(inherits(aggregate(s1, ctr1), "sento_measures"))
+  expect_true(inherits(aggregate(s3, ctr1), "sento_measures"))
+  expect_true(inherits(aggregate(s3, ctr1, do.full = FALSE), "sentiment"))
   expect_error(aggregate(s2, ctr2))
   expect_error(sento_measures(corpus, lex, ctr3))
+  expect_true(all.equal(wc[, 1], wc[, 2]))
 })
 
 # peakdocs

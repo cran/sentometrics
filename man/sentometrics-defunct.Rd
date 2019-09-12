@@ -4,14 +4,109 @@
 \alias{sentometrics-defunct}
 \alias{ctr_merge}
 \alias{perform_MCS}
+\alias{fill_measures}
+\alias{merge_measures}
+\alias{to_global}
+\alias{subset_measures}
+\alias{select_measures}
+\alias{setup_lexicons}
+\alias{retrieve_attributions}
+\alias{perform_agg}
+\alias{plot_attributions}
+\alias{almons}
+\alias{exponentials}
+\alias{to_sentocorpus}
+\alias{to_sentiment}
+\alias{get_measures}
+\alias{measures_subset}
+\alias{measures_select}
+\alias{measures_delete}
+\alias{sentiment_bind}
+\alias{measures_merge}
 \title{Defunct functions}
 \usage{
 ctr_merge(...)
 
 perform_MCS(...)
+
+fill_measures(...)
+
+merge_measures(...)
+
+to_global(...)
+
+subset_measures(...)
+
+select_measures(...)
+
+setup_lexicons(...)
+
+retrieve_attributions(...)
+
+perform_agg(...)
+
+plot_attributions(...)
+
+almons(...)
+
+exponentials(...)
+
+to_sentocorpus(...)
+
+to_sentiment(...)
+
+get_measures(...)
+
+measures_subset(...)
+
+measures_select(...)
+
+measures_delete(...)
+
+sentiment_bind(...)
+
+measures_merge(...)
 }
 \arguments{
-\item{...}{arguments not documented since function declared defunct.}
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
+
+\item{...}{allowed input arguments.}
 }
 \description{
 Functions defunct due to changed naming or because functionality is discarded. See the NEWS file for more information
