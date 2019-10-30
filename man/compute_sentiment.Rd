@@ -2,7 +2,7 @@
 % Please edit documentation in R/sentiment_engines.R
 \name{compute_sentiment}
 \alias{compute_sentiment}
-\title{Compute document-level sentiment across features and lexicons}
+\title{Compute textual sentiment across features and lexicons}
 \usage{
 compute_sentiment(x, lexicons, how = "proportional", tokens = NULL,
   do.sentence = FALSE, nCore = 1)
@@ -17,8 +17,8 @@ case of a \code{character} vector, sentiment is only computed across lexicons.}
 
 \item{lexicons}{a \code{sento_lexicons} object created using \code{\link{sento_lexicons}}.}
 
-\item{how}{a single \code{character} vector defining how aggregation within documents should be performed. For currently
-available options on how aggregation can occur, see \code{\link{get_hows}()$words}.}
+\item{how}{a single \code{character} vector defining how to perform aggregation within
+documents or sentences. For available options, see \code{\link{get_hows}()$words}.}
 
 \item{tokens}{a \code{list} of tokenized documents, or if \code{do.sentence = TRUE} a \code{list} of
 a \code{list} of tokenized sentences. This allows to specify your own tokenization scheme. Can result from the
@@ -32,77 +32,58 @@ in the \pkg{sentimentr} package is followed to carry out the computation.}
 
 \item{nCore}{a positive \code{numeric} that will be passed on to the \code{numThreads} argument of the
 \code{\link[RcppParallel]{setThreadOptions}} function, to parallelize the sentiment computation across texts. A
-value of 1 (default) implies no parallelization. Parallelization is expected to improve speed of the sentiment
+value of 1 (default) implies no parallelization. Parallelization may improve speed of the sentiment
 computation only for sufficiently large corpora.}
 }
 \value{
-If \code{x} is a \code{sento_corpus} object, a \code{sentiment} object, i.e., a \code{data.table} containing
+If \code{x} is a \code{sento_corpus} object: a \code{sentiment} object, i.e., a \code{data.table} containing
 the sentiment scores \code{data.table} with an \code{"id"}, a \code{"date"} and a \code{"word_count"} column,
-and all lexicon-feature sentiment scores columns. A \code{sentiment} object can be used for aggregation into
-time series with the \code{\link{aggregate.sentiment}} function. If \code{do.sentence = TRUE}, an additional
-\code{"sentence_id"} column along the \code{"id"} column is added.
+and all lexicon-feature sentiment scores columns. If \code{do.sentence = TRUE}, an additional
+\code{"sentence_id"} column along the \code{"id"} column is added. The tokenized sentences are not
+provided but can be obtained as \code{stringi::stri_split_boundaries(texts, type = "sentence")}.
+A \code{sentiment} object can be aggregated (into time series) with the \code{\link{aggregate.sentiment}}
+function.
 
-If \code{x} is a \pkg{quanteda} \code{\link[quanteda]{corpus}} object, a sentiment scores
+If \code{x} is a \pkg{quanteda} \code{\link[quanteda]{corpus}} object: a sentiment scores
 \code{data.table} with an \code{"id"} and a \code{"word_count"} column, and all lexicon-feature
 sentiment scores columns.
 
-If \code{x} is a \pkg{tm} \code{SimpleCorpus} object, a \pkg{tm} \code{VCorpus} object, or a \code{character} vector,
-a sentiment scores \code{data.table} with an auto-created \code{"id"} column, a \code{"word_count"} column,
-and all lexicon sentiment scores columns.
+If \code{x} is a \pkg{tm} \code{SimpleCorpus} object, a \pkg{tm} \code{VCorpus} object, or a \code{character}
+vector: a sentiment scores \code{data.table} with an auto-created \code{"id"} column, a \code{"word_count"}
+column, and all lexicon sentiment scores columns.
 }
 \description{
-Given a corpus of texts, computes (net) sentiment per document (and sentences) using the
-bag-of-words approach based on the lexicons provided and a choice of aggregation across words per document
-(or sentence).
+Given a corpus of texts, computes sentiment per document or sentence using the valence shifting
+augmented bag-of-words approach, based on the lexicons provided and a choice of aggregation across words.
 }
 \details{
-For a separate calculation of positive (resp. negative) sentiment, one has to provide distinct positive (resp.
-negative) lexicons. This can be done using the \code{do.split} option in the \code{\link{sento_lexicons}} function, which
-splits out the lexicons into a positive and a negative polarity counterpart. All \code{NA}s are converted to 0, under the
-assumption that this is equivalent to no sentiment. If \code{tokens = NULL} (as per default), texts are tokenized
-as unigrams. Punctuation and numbers are removed, but not stopwords. The number of words for each document is
-computed based on that same tokenization. All tokens are converted to lowercase, in line with what the
-\code{\link{sento_lexicons}} function does for the lexicons and valence shifters.
+For a separate calculation of positive (resp. negative) sentiment, provide distinct positive (resp.
+negative) lexicons (see the \code{do.split} option in the \code{\link{sento_lexicons}} function). All \code{NA}s
+are converted to 0, under the assumption that this is equivalent to no sentiment. Per default \code{tokens = NULL},
+meaning the corpus is internally tokenized as unigrams, with punctuation and numbers but not stopwords removed.
+All tokens are converted to lowercase, in line with what the \code{\link{sento_lexicons}} function does for the
+lexicons and valence shifters. Word counts are based on that same tokenization.
 }
 \section{Calculation}{
 
 If the \code{lexicons} argument has no \code{"valence"} element, the sentiment computed corresponds to simple unigram
 matching with the lexicons [\emph{unigrams} approach]. If valence shifters are included in \code{lexicons} with a
-corresponding \code{"y"} column, these have the effect of modifying the polarity of a word detected from the lexicon if
-appearing right before such word (examples: not good, very bad or can't defend) [\emph{bigrams} approach]. If the valence
+corresponding \code{"y"} column, the polarity of a word detected from a lexicon gets multiplied with the associated
+value of a valence shifter if it appears right before the detected word (examples: not good or can't defend) [\emph{bigrams} approach]. If the valence
 table contains a \code{"t"} column, valence shifters are searched for in a cluster centered around a detected polarity
-word [\emph{clusters} approach]. The latter approach is similar along the one utilized by the \pkg{sentimentr} package,
-but simplified. A cluster amounts to four words before and two words after a polarity word. A cluster never overlaps with
+word [\emph{clusters} approach]. The latter approach is a simplified version of the one utilized by the \pkg{sentimentr}
+package. A cluster amounts to four words before and two words after a polarity word. A cluster never overlaps with
 a preceding one. Roughly speaking, the polarity of a cluster is calculated as \eqn{n(1 + 0.80d)S + \sum s}. The polarity
 score of the detected word is \eqn{S}, \eqn{s} represents polarities of eventual other sentiment words, and \eqn{d} is
 the difference between the number of amplifiers (\code{t = 2}) and the number of deamplifiers (\code{t = 3}). If there
 is an odd number of negators (\code{t = 1}), \eqn{n = -1} and amplifiers are counted as deamplifiers, else \eqn{n = 1}.
-All scores, whether per unigram, per bigram or per cluster, are summed within a document, before the scaling defined
-by the \code{how} argument is applied.
 
-The sentiment calculation on sentence level approaches each sentence as if it is a document. Depending on
-the input either the unigrams, bigrams or clusters approach is used. For the latter, we replicated exactly
-the default \pkg{sentimentr} package method, with a cluster of five words before and two words after the polarized
-word. If there are commas around the polarized word, the cluster is limited (extended) to the words after
-the previous comma and before the next comma. Adversative conjunctions (\eqn{adv}, \code{t = 4})
-are accounted for here. If the value \eqn{1 + 0.25adv} is greater (resp. smaller) than 1, it is added to
-(resp. substracted from) the total amplification weight.
-
-The \code{how = "proportionalPol"} option divides each document's sentiment
-score by the number of detected polarized words (counting words that appear multiple times by their frequency), instead
-of the total number of words which the \code{how = "proportional"} option gives. The \code{how = "counts"} option
-does no normalization. The \code{squareRootCounts} divides the sentiment by the square root of the number of tokens in each text.
-The \code{how = "UShaped"} option gives a higher weight to words at the beginning and end of the texts.
-The \code{how = "invertedUShaped"} option gives a lower weight to words at the beginning
-and the end of the texts. The \code{how = "exponential"} option gives gradually more weight the later the word appears in the text.
-The \code{ how = "invertedExponential"} option gives gradually less weight the later the words appears in the text. The \code{
-how = "TF"} option gives a weight proportional to the number of times a word appears in a text. The \code{how = "logarithmicTF"} option
-gives the same weight as \code{"TF"} but logarithmically scaled. The \code{how = "augmentedTF"} option can
-be used to prevent a bias towards longer documents. The weight is determined by dividing the raw frequency of a token by the raw frequency
-of the most occurring term in the document. The \code{how = "IDF"} option uses the logarithm of the division of the raw frequency of
-a word by the number of texts in which the word appears. By doing this, words appearing in multiple texts get a lower weight. The
-\code{how = "TFIDF"}, \code{how = "logarithmicTFIDF"} and \code{how = "augmentedTFIDF"} options use the same weights as their
-\code{IDF}-variant but then multiplied with the \code{how = "IDF"} option. See the vignette for more details.
+The sentence-level sentiment calculation approaches each sentence as if it is a document. Depending on the input either
+the unigrams, bigrams or clusters approach is used. We enhanced latter approach following more closely the default
+\pkg{sentimentr} settings. They use a cluster of five words before and two words after a polarized word. The cluster
+is limited to the words after a previous comma and before a next comma. Adversative conjunctions (\code{t = 4}) are
+accounted for here. The cluster is reweighted based on the value \eqn{1 + 0.25adv}, where \eqn{adv} is the difference
+between the number of adversative conjunctions found before and after the polarized word.
 }
 
 \examples{
@@ -136,7 +117,7 @@ toks <- as.list(quanteda::tokens(corpusQSample, what = "fastestword"))
 sent4 <- compute_sentiment(corpusQSample, l1[1], how = "counts", tokens = toks)
 
 # from a SimpleCorpus object - unigrams approach
-scorp <- tm::SimpleCorpus(tm::DirSource(txt, encoding = "UTF-8"))
+scorp <- tm::SimpleCorpus(tm::DirSource(txt))
 sent5 <- compute_sentiment(scorp, l1, how = "proportional")
 
 # from a VCorpus object - unigrams approach
@@ -144,21 +125,24 @@ sent5 <- compute_sentiment(scorp, l1, how = "proportional")
 ## sentiment calculator handles multiple character vectors within
 ## a single corpus element as separate documents
 vcorp <- tm::VCorpus(tm::DirSource(reuters))
-sent6 <- compute_sentiment(vcorp, l1, how = "proportional")
+sent6 <- compute_sentiment(vcorp, l1)
 
 # from a sento_corpus object - unigrams approach with tf-idf weighting
 sent7 <- compute_sentiment(corpusSample, l1, how = "TFIDF")
 
 # sentence-by-sentence computation
-sent8 <- compute_sentiment(corpusSample, l1, how = "squareRootCounts",
+sent8 <- compute_sentiment(corpusSample, l1, how = "proportionalSquareRoot",
                            do.sentence = TRUE)
 
 # from an artificially constructed multilingual corpus
 usnews[["language"]] <- "en" # add language column
 usnews$language[1:100] <- "fr"
-l_en <- sento_lexicons(list("FEEL_en" = list_lexicons$FEEL_en_tr))
-l_fr <- sento_lexicons(list("FEEL_fr" = list_lexicons$FEEL_fr))
-lexicons <- list(en = l_en, fr = l_fr)
+lEn <- sento_lexicons(list("FEEL_en" = list_lexicons$FEEL_en_tr,
+                           "HENRY" = list_lexicons$HENRY_en),
+                      list_valence_shifters$en)
+lFr <- sento_lexicons(list("FEEL_fr" = list_lexicons$FEEL_fr),
+                      list_valence_shifters$fr)
+lexicons <- list(en = lEn, fr = lFr)
 corpusLang <- sento_corpus(corpusdf = usnews[1:250, ])
 sent9 <- compute_sentiment(corpusLang, lexicons, how = "proportional")
 

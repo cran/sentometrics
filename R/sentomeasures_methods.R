@@ -6,8 +6,7 @@
 #' @method plot sento_measures
 #'
 #' @description Plotting method that shows all sentiment measures from the provided \code{sento_measures}
-#' object in one plot, or the average along one of the lexicons, features and time weighting dimensions. We suggest to
-#' make use of a \code{measures_xyz} function when you want to plot only a subset of the sentiment measures.
+#' object in one plot, or the average along one of the lexicons, features and time weighting dimensions.
 #'
 #' @param x a \code{sento_measures} object created using \code{\link{sento_measures}}.
 #' @param group a value from \code{c("lexicons", "features", "time", "all")}. The first three choices display the average of
@@ -20,26 +19,23 @@
 #' graphs plotted and \code{group} is different from \code{"all"}.
 #'
 #' @examples
-#' data("usnews", package = "sentometrics")
-#' data("list_lexicons", package = "sentometrics")
-#' data("list_valence_shifters", package = "sentometrics")
-#'
 #' # construct a sento_measures object to start with
-#' corpus <- sento_corpus(corpusdf = usnews)
+#' corpus <- sento_corpus(corpusdf = sentometrics::usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- sento_lexicons(list_lexicons[c("LM_en")], list_valence_shifters[["en"]])
-#' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "year", lag = 3)
+#' l <- sento_lexicons(sentometrics::list_lexicons[c("LM_en")],
+#'                     sentometrics::list_valence_shifters[["en"]])
+#' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "month", lag = 3)
 #' sento_measures <- sento_measures(corpusSample, l, ctr)
 #'
 #' # plot sentiment measures
-#' plot(sento_measures, group = "features")
+#' plot(sento_measures, "features")
 #'
 #' \dontrun{
 #' # adjust appearance of plot
 #' library("ggplot2")
 #' p <- plot(sento_measures)
 #' p <- p +
-#'   scale_x_date(name = "month-year") +
+#'   scale_x_date(name = "year", date_labels = "%Y") +
 #'   scale_y_continuous(name = "newName")
 #' p}
 #'
@@ -48,10 +44,9 @@
 plot.sento_measures <- function(x, group = "all", ...) {
   if (!(group %in% c("lexicons", "features", "time", "all")))
     stop("The 'group' argument should be either 'lexicons', 'features', 'time' or 'all'.")
-  sento_measures <- x
-  measures <- as.data.table(sento_measures)
+  measures <- data.table::as.data.table(x)
   if (group == "all") {
-    measuresMelt <- melt(measures, id.vars = "date", variable.factor = FALSE)
+    measuresMelt <- data.table::melt(measures, id.vars = "date", variable.factor = FALSE)
     legendPos <- "none"
   } else {
     measuresMelt <- measures_to_long(measures)[, c("date", group, "value"), with = FALSE]
@@ -102,9 +97,9 @@ plot.sento_measures <- function(x, group = "all", ...) {
 diff.sento_measures <- function(x, lag = 1, differences = 1, ...) {
   sento_measures <- x
   dates <- get_dates(sento_measures)[-1:-(lag * differences)]
-  measures <- as.data.table(sento_measures)[, -1] # drop dates
+  measures <- data.table::as.data.table(sento_measures)[, -1] # drop dates
   measuresDiff <- diff(as.matrix(measures), lag = lag, differences = differences)
-  sento_measures$measures <- data.table(date = dates, measuresDiff)
+  sento_measures$measures <- data.table::data.table(date = dates, measuresDiff)
   sento_measures$stats <- compute_stats(sento_measures)
   return(sento_measures)
 }
@@ -138,7 +133,7 @@ nmeasures <- function(sento_measures) {
 #' @param object a \code{sento_measures} object created using \code{\link{sento_measures}}.
 #' @param ... not used.
 #'
-#' @return The number of rows (observations/data points) in \code{sento_measures[["measures"]]}.
+#' @return The number of rows (observations/data points) in \code{object[["measures"]]}.
 # #'
 # #' @keywords internal
 #'
@@ -199,7 +194,7 @@ nobs.sento_measures <- function(object, ...) {
 scale.sento_measures <- function(x, center = TRUE, scale = TRUE) {
   sento_measures <- x
   dates <- get_dates(sento_measures)
-  measures <- as.data.table(sento_measures)[, -1] # drop dates
+  measures <- data.table::as.data.table(sento_measures)[, -1] # drop dates
   if (is.matrix(center)) {
     if (nrow(center) != nobs(sento_measures) || !(ncol(center) %in% c(1, nmeasures(sento_measures))))
       stop("The matrix dimensions of the 'center' argument are not correct.")
@@ -214,7 +209,7 @@ scale.sento_measures <- function(x, center = TRUE, scale = TRUE) {
   }
 
   measuresNorm <- scale(measures, center = center, scale = scale)
-  sento_measures$measures <- data.table(date = dates, measuresNorm)
+  sento_measures$measures <- data.table::data.table(date = dates, measuresNorm)
   sento_measures$stats <- compute_stats(sento_measures)
   return(sento_measures)
 }
@@ -301,8 +296,8 @@ get_dimensions <- function(sento_measures) {
 #'                      sento_lexicons(list_lexicons["LM_en"]),
 #'                      ctr_agg(lag = 3))
 #'
-#' as.data.table(sm)
-#' as.data.table(sm, "long")
+#' data.table::as.data.table(sm)
+#' data.table::as.data.table(sm, format = "long")
 #'
 #' @export
 as.data.table.sento_measures <- function(x, keep.rownames = FALSE, format = "wide", ...) {
@@ -312,6 +307,11 @@ as.data.table.sento_measures <- function(x, keep.rownames = FALSE, format = "wid
     measures_to_long(x[["measures"]])
   else
     stop("The 'format' argument should be 'wide' or 'long'.")
+}
+
+#' @export
+as.data.frame.sento_measures <- function(x, ...) {
+  as.data.frame(x[["measures"]])
 }
 
 #' Subset sentiment measures
@@ -345,10 +345,11 @@ as.data.table.sento_measures <- function(x, keep.rownames = FALSE, format = "wid
 #' sm <- sento_measures(corpusSample, l, ctr)
 #'
 #' # three specified indices in required list format
-#' three <- as.list(stringi::stri_split(
-#'   c("LM_en--economy--linear",
-#'     "HENRY_en--wsj--equal_weight",
-#'     "HENRY_en--wapo--equal_weight"), regex = "--")
+#' three <- as.list(
+#'   stringi::stri_split(c("LM_en--economy--linear",
+#'                         "HENRY_en--wsj--equal_weight",
+#'                         "HENRY_en--wapo--equal_weight"),
+#'                       regex = "--")
 #' )
 #'
 #' # different subsets
@@ -382,7 +383,7 @@ subset.sento_measures <- function(x, subset = NULL, select = NULL, delete = NULL
       warning("At least one row index is greater than nobs(x). Input sento_measures object is returned.")
       return(x)
     }
-    measuresNew <- as.data.table(x)[subset, ]
+    measuresNew <- data.table::as.data.table(x)[subset, ]
     if (nrow(measuresNew) == 0) {
       warning("No rows retained. Input sento_measures object is returned.")
       return(x)
@@ -394,7 +395,7 @@ subset.sento_measures <- function(x, subset = NULL, select = NULL, delete = NULL
     if (length(sub) > 0 && sub != "NULL") {
       sub <- stringi::stri_replace_all(sub, "", regex = " ")
       sub <- stringi::stri_replace_all(sub, "____", regex = "--")
-      measures <- as.data.table(x)
+      measures <- data.table::as.data.table(x)
       colnames(measures) <- stringi::stri_replace_all(colnames(measures), "____", regex = "--") # -- is problematic here
       measuresNew <- tryCatch(measures[eval(parse(text = sub), parent.frame(2))], error = function(e) NULL)
       if (is.null(measuresNew)) stop("The 'subset' argument must evaluate to logical.")
@@ -416,7 +417,7 @@ subset.sento_measures <- function(x, subset = NULL, select = NULL, delete = NULL
                   paste0(unique(unlist(select)[!valid]), collapse = ', '), "."))
     }
 
-    measures <- as.data.table(x)
+    measures <- data.table::as.data.table(x)
     namesList <- stringi::stri_split(colnames(measures), regex = "--")
     if (is.list(select)) {
       ind <- rep(FALSE, length(namesList))
@@ -442,7 +443,7 @@ subset.sento_measures <- function(x, subset = NULL, select = NULL, delete = NULL
                   paste0(unique(unlist(delete)[!valid]), collapse = ', '), "."))
     }
 
-    measures <- as.data.table(x)
+    measures <- data.table::as.data.table(x)
     namesList <- stringi::stri_split(colnames(measures), regex = "--")
     if (is.list(delete)) {
       ind <- rep(FALSE, length(namesList))
@@ -467,24 +468,42 @@ subset.sento_measures <- function(x, subset = NULL, select = NULL, delete = NULL
 #' @author Samuel Borms
 #'
 #' @description Aggregates sentiment measures by combining across provided lexicons, features, and time weighting
-#' schemes dimensions. The combination occurs by taking the mean of the relevant measures.
+#' schemes dimensions. For \code{do.global = FALSE}, the combination occurs by taking the mean of the relevant
+#' measures. For \code{do.global = TRUE}, this function aggregates all sentiment measures into a weighted global textual
+#' sentiment measure for each of the dimensions.
+#'
+#' @details If \code{do.global = TRUE}, the measures are constructed from weights that indicate the importance (and sign)
+#' along each component from the \code{lexicons}, \code{features}, and \code{time} dimensions. There is no restriction in
+#' terms of allowed weights. For example, the global index based on the supplied lexicon weights (\code{"globLex"}) is obtained
+#' first by multiplying every sentiment measure with its corresponding weight (meaning, the weight given to the lexicon the
+#' sentiment is computed with), then by taking the average per date.
 #'
 #' @param x a \code{sento_measures} object created using \code{\link{sento_measures}}.
 #' @param lexicons a \code{list} with unique lexicons to aggregate at given name, e.g., \cr
-#' \code{list(lex12 = c("lex1", "lex2"))}. See \code{sento_measures$lexicons} for the exact names to use. Use \code{NULL}
-#' (default) to apply no merging across this dimension.
+#' \code{list(lex12 = c("lex1", "lex2"))}. See \code{x$lexicons} for the exact names to use. Use \code{NULL}
+#' (default) to apply no merging across this dimension. If \code{do.global = TRUE}, should be a \code{numeric} vector of
+#' weights, of size \code{length(x$lexicons)}, in the same order. A value of \code{NULL} means equally weighted.
 #' @param features a \code{list} with unique features to aggregate at given name, e.g., \cr
-#' \code{list(feat12 = c("feat1", "feat2"))}. See \code{sento_measures$features} for the exact names to use. Use \code{NULL}
-#' (default) to apply no merging across this dimension.
+#' \code{list(feat12 = c("feat1", "feat2"))}. See \code{x$features} for the exact names to use. Use \code{NULL}
+#' (default) to apply no merging across this dimension. If \code{do.global = TRUE}, should be a \code{numeric} vector of
+#' weights, of size \code{length(x$features)}, in the same order. A value of \code{NULL} means equally weighted.
 #' @param time a \code{list} with unique time weighting schemes to aggregate at given name, e.g., \cr
-#' \code{list(tw12 = c("tw1", "tw2"))}. See \code{sento_measures$time} for the exact names to use. Use \code{NULL} (default)
-#' to apply no merging across this dimension.
+#' \code{list(tw12 = c("tw1", "tw2"))}. See \code{x$time} for the exact names to use. Use \code{NULL} (default)
+#' to apply no merging across this dimension. If \code{do.global = TRUE}, should be a \code{numeric} vector of
+#' weights, of size \code{length(x$time)}, in the same order. A value of \code{NULL} means equally weighted.
+#' @param do.global a \code{logical} indicating if the sentiment measures should be aggregated into weighted
+#' global sentiment indices.
 #' @param do.keep a \code{logical} indicating if the original sentiment measures should be kept (i.e., the aggregated
 #' sentiment measures will be added to the current sentiment measures as additional indices if \code{do.keep = TRUE}).
 #' @param ... not used.
 #'
-#' @return A modified \code{sento_measures} object, with only the sentiment measures required, including updated information
-#' and statistics, but the original sentiment scores \code{data.table} untouched.
+#' @return If \code{do.global = FALSE}, a modified \code{sento_measures} object, with the aggregated sentiment
+#' measures, including updated information and statistics, but the original sentiment scores \code{data.table}
+#' untouched.
+#'
+#' If \code{do.global = TRUE}, a \code{data.table} with the different types of weighted global sentiment measures,
+#' named \code{"globLex"}, \code{"globFeat"}, \code{"globTime"} and \code{"global"}, with \code{"date"} as the first
+#' column. The last measure is an average of the the three other measures.
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
@@ -494,8 +513,10 @@ subset.sento_measures <- function(x, subset = NULL, select = NULL, delete = NULL
 #' # construct a sento_measures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- sento_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
-#' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "year", lag = 3)
+#' l <- sento_lexicons(list_lexicons[c("LM_en", "HENRY_en")],
+#'                     list_valence_shifters[["en"]])
+#' ctr <- ctr_agg(howTime = c("equal_weight", "linear"),
+#'                by = "year", lag = 3)
 #' sento_measures <- sento_measures(corpusSample, l, ctr)
 #'
 #' # aggregation across specified components
@@ -511,15 +532,34 @@ subset.sento_measures <- function(x, subset = NULL, select = NULL, delete = NULL
 #'                     time = list(T = dims[["time"]]),
 #'                     features = list(F = dims[["features"]]))
 #'
+#' # "global" aggregation
+#' smGlobal <- aggregate(sento_measures, do.global = TRUE,
+#'                       lexicons = c(0.3, 0.1),
+#'                       features = c(1, -0.5, 0.3, 1.2),
+#'                       time = NULL)
+#'
 #' \dontrun{
 #' # aggregation won't work, but produces informative error message
 #' aggregate(sento_measures,
 #'           time = list(W = c("equal_weight", "almon1")),
 #'           lexicons = list(LEX = c("LM_en")),
 #'           features = list(journals = c("notInHere", "wapo")))}
+#'
 #' @export
-aggregate.sento_measures <- function(x, features = NULL, lexicons = NULL, time = NULL, do.keep = FALSE, ...) {
+aggregate.sento_measures <- function(x, features = NULL, lexicons = NULL, time = NULL,
+                                     do.global = FALSE, do.keep = FALSE, ...) {
+  stopifnot(is.logical(do.global))
 
+  if (do.global == TRUE) {
+    stopifnot(is.null(features) || is.numeric(features))
+    stopifnot(is.null(lexicons) || is.numeric(lexicons))
+    stopifnot(is.null(time) || is.numeric(time))
+    measures <- measures_global(x, lexicons, features, time)
+    if (do.keep == TRUE) measures <- cbind(measures, data.table::as.data.table(x)[, -1])
+    return(measures)
+  }
+
+  stopifnot(is.logical(do.keep))
   stopifnot(is.null(features) || is.list(features))
   stopifnot(is.null(lexicons) || is.list(lexicons))
   stopifnot(is.null(time) || is.list(time))
@@ -528,7 +568,7 @@ aggregate.sento_measures <- function(x, features = NULL, lexicons = NULL, time =
   if (check$stop == TRUE)
     stop(paste0(c("Wrong inputs.", check$msg1, check$msg2), collapse = " "))
 
-  measures <- as.data.table(x)
+  measures <- data.table::as.data.table(x)
   toAgg <- list(lexicons = lexicons, features = features, time = time)
 
   if (do.keep == TRUE) {

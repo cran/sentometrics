@@ -2,7 +2,7 @@
 % Please edit documentation in R/sentocorpus.R
 \name{add_features}
 \alias{add_features}
-\title{Add feature columns to a (sento)corpus object}
+\title{Add feature columns to a (sento_)corpus object}
 \usage{
 add_features(corpus, featuresdf = NULL, keywords = NULL,
   do.binary = TRUE, do.regex = FALSE)
@@ -46,12 +46,12 @@ expression. For a large corpus and/or complex regex patterns, this function may 
 and 1 is performed via min-max normalization, per column.
 }
 \examples{
-data("usnews", package = "sentometrics")
-
 set.seed(505)
 
 # construct a corpus and add (a) feature(s) to it
-corpus <- quanteda::corpus_sample(sento_corpus(corpusdf = usnews), 500)
+corpus <- quanteda::corpus_sample(
+  sento_corpus(corpusdf = sentometrics::usnews), 500
+)
 corpus1 <- add_features(corpus,
                         featuresdf = data.frame(random = runif(quanteda::ndoc(corpus))))
 corpus2 <- add_features(corpus,

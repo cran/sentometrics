@@ -24,23 +24,20 @@ Please cite the package in publications. Use \code{citation("sentometrics")}.
 \code{\link{as.sento_corpus}}
 \item Sentiment computation and aggregation into sentiment measures: \code{\link{ctr_agg}},
 \code{\link{sento_lexicons}}, \code{\link{compute_sentiment}}, \code{\link{aggregate.sentiment}},
-\code{\link{peakdocs}}, \code{\link{sento_measures}}, \code{\link{peakdates}},
-\code{\link{aggregate.sento_measures}}, and a series of manipulation functions
+\code{\link{as.sentiment}}, \code{\link{sento_measures}}, \code{\link{aggregate.sento_measures}},
+\code{\link{peakdocs}}, \code{\link{peakdates}}
 \item Sparse modelling: \code{\link{ctr_model}}, \code{\link{sento_model}}
-\item Prediction and post-modelling analysis: \code{\link{predict.sento_model}}, \code{\link{attributions}}
+\item Prediction and post-modelling analysis: \code{\link{predict.sento_model}},
+\code{\link{attributions}}
 }
-
-The \code{\link{sento_app}} function is a Shiny interface for fast document-level sentiment computation
-and aggregation, and downloading of the obtained values. It serves as a visualisation of part of what the
-package does.
 }
 
 \references{
 Ardia, Bluteau and Boudt (2019). ``Questioning the news about economic growth: Sparse forecasting using
-thousands of news-based sentiment values''. \emph{International Journal of Forecasting, forthcoming},
-\url{https://doi.org/10.2139/ssrn.2976084}.
+thousands of news-based sentiment values''. \emph{International Journal of Forecasting 35, 1370-1386},
+\url{https://doi.org/10.1016/j.ijforecast.2018.10.010}.
 
-Ardia, Bluteau, Borms and Boudt (2018). ``The R package sentometrics to compute, aggregate and
+Ardia, Bluteau, Borms and Boudt (2019). ``The R package sentometrics to compute, aggregate and
 predict with textual sentiment''. \emph{Working paper}, \url{https://doi.org/10.2139/ssrn.3067734}.
 }
 \seealso{
@@ -52,13 +49,13 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Samuel Borms \email{samuel.borms@unine.ch}
+\strong{Maintainer}: Samuel Borms \email{samuel.borms@unine.ch} (0000-0001-9533-1870)
 
 Authors:
 \itemize{
-  \item David Ardia \email{david.ardia@unine.ch}
-  \item Keven Bluteau \email{keven.bluteau@unine.ch}
-  \item Kris Boudt \email{kris.boudt@vub.be}
+  \item David Ardia \email{david.ardia@hec.ca} (0000-0003-2823-782X)
+  \item Keven Bluteau \email{keven.bluteau@unine.ch} (0000-0003-2990-4807)
+  \item Kris Boudt \email{kris.boudt@vub.be} (0000-0002-1000-5142)
 }
 
 Other contributors:

@@ -1,14 +1,37 @@
 
+## sentometrics 0.7.5
+
+- new functions: `as.data.table.sento_corpus()`, `as.data.frame.sento_corpus()`, and `as.data.frame.sento_measures()`
+- embedded a small workaround in the `plot.attributions()` function to guaranty same plotting behaviour after update of **`ggplot2`** package that gave buggy output for the `geom_area()` layer
+- integrated for overall consistency the `measures_global()` function into the `aggregate.sento_measures()` function, adding a `do.global` argument to enact it
+- slightly changed the clusters-based sentence-level sentiment computation (different weighting of
+adversative conjunctions)
+- clarified the documentation for the `peakdates()` and `peakdocs()` functions
+- put the Shiny application made available in previous package update (i.e., the `sento_app()` function) in a separate sole-purpose package **`sentometrics.app`** (see https://github.com/sborms/sentometrics.app) 
+- moved the **`data.table`** package from Depends to Imports (see https://github.com/Rdatatable/data.table/issues/3076)
+- no change by reference of input sentiment objects in the `merge.sentiment()` function anymore, and modified the merging to give for instance a simple column binding of sentment methods when all else is equal
+- correct pass-through of default `how` argument in the `compute_sentiment()` function
+- added a few adversative conjunctions to all word lists in `list_valence_shifters`
+- added a `do.normalize` option to the `weights_beta()` and `weights_exponential()` functions
+- added a `do.inverse` option to the `weights_exponential()` function and associated `do.inverseExp` argument in the `ctr_agg()` function
+- modified some names of options for within-document or within-sentence aggregation (i.e., across tokens): `"squareRootCounts"` into `"proportionalSquareRoot"`, `"invertedExponential"` into `"inverseExponential"`, and `"invertedUShaped"` into `"inverseUShaped"`
+- corrected the numerator (number of documents or sentences instead of token frequency) in all weighting schemes involving the inverse document frequency (IDF)
+- aligned all formulas concerning the exponential weighting curves
+- the `compute_sentiment()` function now also can do a sentence-level calculation using the bigrams valence shifting approach
+- fixed a small bug that did not allow to have different valence shifters lists for a multi-language sentiment calculation
+
 ## sentometrics 0.7.0
 
 - new functions: `measures_update()`, `subset.sento_measures()`, `as.sentiment()`, `as.sento_measures()`, `as.data.table.sentiment()`, `corpus_summarize()`, `sento_app()`, and `aggregate.sento_measures()`
 - defunct all deprecated functions as well as the functions replaced by the new functions (_wiping the slate clean..._) 
-- handled reverse dependency issue raised by **quanteda** developers regarding their new corpus object
+- handled reverse dependency issue raised by **`quanteda`** developers regarding their new corpus object
 - renamed the class objects coming from any `sento_xyz()` function into the name of the function (e.g., the `sento_measures()` function now gives a `sento_measures` object instead of a `sentomeasures` object)
 - fixed a small bug in the `aggregate.sento_measures()` (previously `measures_merge()`) function to take the mean instead of the sum in a particular case
 - added many more within- and across-document weighting schemes (see the `get_hows()` function for an overview)
 - added the flexibility to do an explicit sentence-by-sentence sentiment computation (see `do.sentence` argument in the `compute_sentiment()` function)
+- added the flexibility to create a multi-language `sento_corpus` object to do a multi-language sentiment computation (applying different lexicons to texts written in different languages)
 - expanded the `compute_sentiment()` function to also take **`tm`** `SimpleCorpus` and `VCorpus` objects
+- added the **`tm`** and **`NLP`** packages to Suggests
 
 ## sentometrics 0.5.6
 
@@ -75,7 +98,7 @@
 
 - new functions: `measures_delete()`, `nmeasures()`, `nobs()`, and `to_sentocorpus()`
 - renamed following functions: any `xyz_measures()` to `measures_xyz()`, `extract_peakdocs()` to `peakdocs()`
-- dropped `do.normalizeAlm` argument in the `ctr_agg()` function, but kept in the `almons()` function
+- dropped `do.normalizeAlm` argument in the `ctr_agg()` function (but kept in the `almons()` function)
 - inverted order of rows in output of the `almons()` function to be consistent with Ardia et al. (2017) paper
 - renamed `lexicons` to `list_lexicons`, and `valence` to `list_valence_shifters` 
 - the `stats` element of a `sentomeasures` object is now also updated in `measures_fill()`

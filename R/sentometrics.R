@@ -15,22 +15,19 @@
 #' \code{\link{as.sento_corpus}}
 #' \item Sentiment computation and aggregation into sentiment measures: \code{\link{ctr_agg}},
 #' \code{\link{sento_lexicons}}, \code{\link{compute_sentiment}}, \code{\link{aggregate.sentiment}},
-#' \code{\link{peakdocs}}, \code{\link{sento_measures}}, \code{\link{peakdates}},
-#' \code{\link{aggregate.sento_measures}}, and a series of manipulation functions
+#' \code{\link{as.sentiment}}, \code{\link{sento_measures}}, \code{\link{aggregate.sento_measures}},
+#' \code{\link{peakdocs}}, \code{\link{peakdates}}
 #' \item Sparse modelling: \code{\link{ctr_model}}, \code{\link{sento_model}}
-#' \item Prediction and post-modelling analysis: \code{\link{predict.sento_model}}, \code{\link{attributions}}
+#' \item Prediction and post-modelling analysis: \code{\link{predict.sento_model}},
+#' \code{\link{attributions}}
 #' }
-#'
-#' The \code{\link{sento_app}} function is a Shiny interface for fast document-level sentiment computation
-#' and aggregation, and downloading of the obtained values. It serves as a visualisation of part of what the
-#' package does.
 #'
 #' @note Please cite the package in publications. Use \code{citation("sentometrics")}.
 #'
 #' @references Ardia, Bluteau and Boudt (2019). ``Questioning the news about economic growth: Sparse forecasting using
-#' thousands of news-based sentiment values''. \emph{International Journal of Forecasting, forthcoming},
-#' \url{https://doi.org/10.2139/ssrn.2976084}.
-#' @references Ardia, Bluteau, Borms and Boudt (2018). ``The R package sentometrics to compute, aggregate and
+#' thousands of news-based sentiment values''. \emph{International Journal of Forecasting 35, 1370-1386},
+#' \url{https://doi.org/10.1016/j.ijforecast.2018.10.010}.
+#' @references Ardia, Bluteau, Borms and Boudt (2019). ``The R package sentometrics to compute, aggregate and
 #' predict with textual sentiment''. \emph{Working paper}, \url{https://doi.org/10.2139/ssrn.3067734}.
 "_PACKAGE"
 
@@ -95,8 +92,9 @@
 #' @description
 #' A \code{list} containing all built-in valence word lists, as \code{data.table}s with three columns: a \code{x} column with
 #' the words, a \code{y} column with the values associated to each word, and a \code{t} column with the type of valence
-#' shifter (\code{1} = negators, \code{2} = amplifiers, \code{3} = deamplifiers). The \code{list} element names indicate the
-#' language (based on the two-letter ISO code convention as in \code{\link[stopwords]{stopwords}}) of the valence word list.
+#' shifter (\code{1} = negators, \code{2} = amplifiers, \code{3} = deamplifiers,
+#' \code{4} = adversative conjunctions). The \code{list} element names indicate the language
+#' (based on the two-letter ISO code convention as in \code{\link[stopwords]{stopwords}}) of the valence word list.
 #' All non-English word lists are translated via Microsoft Translator through Microsoft Word. Only the entries whose
 #' translation differs from the original entry are kept. All words are unigrams and in lowercase. The built-in valence word
 #' lists are available in following languages:

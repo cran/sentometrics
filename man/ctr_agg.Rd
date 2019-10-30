@@ -8,20 +8,21 @@ ctr_agg(howWithin = "proportional", howDocs = "equal_weight",
   howTime = "equal_weight", do.sentence = FALSE,
   do.ignoreZeros = TRUE, by = "day", lag = 1, fill = "zero",
   alphaExpDocs = 0.1, alphasExp = seq(0.1, 0.5, by = 0.1),
-  ordersAlm = 1:3, do.inverseAlm = TRUE, aBeta = 1:4, bBeta = 1:4,
-  weights = NULL, tokens = NULL, nCore = 1)
+  do.inverseExp = FALSE, ordersAlm = 1:3, do.inverseAlm = TRUE,
+  aBeta = 1:4, bBeta = 1:4, weights = NULL, tokens = NULL,
+  nCore = 1)
 }
 \arguments{
-\item{howWithin}{a single \code{character} vector defining how aggregation within documents will be performed. Should
-\code{length(howWithin) > 1}, the first element is used. For available options on how this aggregation can
-occur; see \code{\link{get_hows}()$words}.}
+\item{howWithin}{a single \code{character} vector defining how to perform aggregation within
+documents or sentences. Coincides with the \code{how} argument in the \code{\link{compute_sentiment}} function. Should
+\code{length(howWithin) > 1}, the first element is used. For available options see \code{\link{get_hows}()$words}.}
 
 \item{howDocs}{a single \code{character} vector defining how aggregation across documents (and/or sentences) per date will
-be performed. Should \code{length(howDocs) > 1}, the first element is used. For available options on how this aggregation
-can occur; see \code{\link{get_hows}()$docs}.}
+be performed. Should \code{length(howDocs) > 1}, the first element is used. For available options
+see \code{\link{get_hows}()$docs}.}
 
 \item{howTime}{a \code{character} vector defining how aggregation across dates will be performed. More than one choice
-is possible. For available options on how this aggregation can occur; see \code{\link{get_hows}()$time}.}
+is possible. For available options see \code{\link{get_hows}()$time}.}
 
 \item{do.sentence}{see \code{\link{compute_sentiment}}.}
 
@@ -51,6 +52,9 @@ applying the \code{\link{measures_fill}} function before aggregating, except if 
 \code{"exponential" \%in\% howTime}. Values should be between 0 and 1 (both excluded); see
 \code{\link{weights_exponential}}.}
 
+\item{do.inverseExp}{a \code{logical} indicating if for every exponential curve its inverse has to be added,
+used if \code{"exponential" \%in\% howTime}; see \code{\link{weights_exponential}}.}
+
 \item{ordersAlm}{a \code{numeric} vector of all Almon polynomial orders (positive) to calculate weights for, used if
 \code{"almon" \%in\% howTime}; see \code{\link{weights_almon}}.}
 
@@ -74,12 +78,12 @@ equal to the desired \code{lag}.}
 A \code{list} encapsulating the control parameters.
 }
 \description{
-Sets up control object for aggregation of document-level textual sentiment into textual
-sentiment measures (indices).
+Sets up control object for (computation of textual sentiment and) aggregation into textual
+sentiment measures.
 }
 \details{
-For currently available options on how aggregation can occur (via the \code{howWithin},
-\code{howDocs} and \code{howTime} arguments), call \code{\link{get_hows}}. The control parameters
+For available options on how aggregation can occur (via the \code{howWithin},
+\code{howDocs} and \code{howTime} arguments), inspect \code{\link{get_hows}}. The control parameters
 associated to \code{howDocs} are used both for aggregation across documents and across sentences.
 }
 \examples{

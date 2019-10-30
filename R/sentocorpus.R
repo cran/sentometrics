@@ -152,7 +152,7 @@ clean_texts <- function(corpusdf) {
   return(corpusdf)
 }
 
-#' Add feature columns to a (sento)corpus object
+#' Add feature columns to a (sento_)corpus object
 #'
 #' @author Samuel Borms
 #'
@@ -187,12 +187,12 @@ clean_texts <- function(corpusdf) {
 #' @return An updated \code{corpus} object.
 #'
 #' @examples
-#' data("usnews", package = "sentometrics")
-#'
 #' set.seed(505)
 #'
 #' # construct a corpus and add (a) feature(s) to it
-#' corpus <- quanteda::corpus_sample(sento_corpus(corpusdf = usnews), 500)
+#' corpus <- quanteda::corpus_sample(
+#'   sento_corpus(corpusdf = sentometrics::usnews), 500
+#' )
 #' corpus1 <- add_features(corpus,
 #'                         featuresdf = data.frame(random = runif(quanteda::ndoc(corpus))))
 #' corpus2 <- add_features(corpus,
@@ -300,16 +300,17 @@ add_features <- function(corpus, featuresdf = NULL, keywords = NULL, do.binary =
 #'
 #' @author Jeroen Van Pelt, Samuel Borms, Andres Algaba
 #'
-#' @description Summarizes the \code{sento_corpus} object and returns insights about features and tokens over time.
+#' @description Summarizes the \code{sento_corpus} object and returns insights about the evolution of
+#' documents, features and tokens over time.
 #'
-#' @details This function summarizes the \code{sento_corpus} object by generating statistics about features and tokens over
-#' time. The insights can be narrowed down to a chosen set of metadata features. The same tokenization as in the
-#' sentiment calculation in \code{\link{compute_sentiment}} is used.
+#' @details This function summarizes the \code{sento_corpus} object by generating statistics about
+#' documents, features and tokens over time. The insights can be narrowed down to a chosen set of metadata
+#' features. The same tokenization as in the sentiment calculation in \code{\link{compute_sentiment}} is used.
 #'
 #' @param x is a \code{sento_corpus} object created with \code{\link{sento_corpus}}
 #' @param by a single \code{character} vector to specify the frequency time interval over which the statistics
 #' need to be calculated.
-#' @param features a \code{character} vector that can be used to select a subset of the features to be analysed.
+#' @param features a \code{character} vector that can be used to select a subset of the features to analyse.
 #'
 #' @return returns a \code{list} containing:
 #' \item{stats}{a \code{data.table} with statistics about the number of documents, total, average, minimum and maximum
@@ -324,9 +325,11 @@ add_features <- function(corpus, featuresdf = NULL, keywords = NULL, do.binary =
 #' # summary of corpus by day
 #' summary1 <- corpus_summarize(corpus)
 #'
-#' # summary of corpus by month
-#' summary2 <- corpus_summarize(corpus, by = "month")
+#' # summary of corpus by month for both journals
+#' summary2 <- corpus_summarize(corpus, by = "month",
+#'                              features = c("wsj", "wapo"))
 #'
+#' @import ggplot2
 #' @export
 corpus_summarize <- function(x, by = "day", features = NULL) {
   check_class(x, "sento_corpus")
@@ -335,10 +338,14 @@ corpus_summarize <- function(x, by = "day", features = NULL) {
   }
 
   # statistics
-  dt <- data.table(quanteda::docvars(x),
-                   "nTokens" = as.numeric(sapply(tokenize_texts(quanteda::texts(x)), length)))
+  dt <- data.table::data.table(
+    quanteda::docvars(x),
+    "nTokens" = as.numeric(sapply(tokenize_texts(quanteda::texts(x)), length))
+  )
 
   if (!is.null(features)) {
+    if (!all(features %in% colnames(dt)[-c(1, ncol(dt))]))
+      stop("Not all features provided in the 'features' argument are present in the corpus.")
     dt <- dt[, c(features, "date", "nTokens"), with = FALSE]
   }
 
@@ -359,33 +366,30 @@ corpus_summarize <- function(x, by = "day", features = NULL) {
   freqAll <- merge(freqTexts, freqFeatures, by = "date")
 
   stats <- merge(tokensDT, freqAll, by = "date")
-  setcolorder(stats, c("date", "documents"))
+  data.table::setcolorder(stats, c("date", "documents"))
 
   # plots
-  docPlot <- ggplot(melt(freqAll[, .(date, documents)], id = "date", all = TRUE)) +
+  docPlot <- ggplot(data.table::melt(freqAll[, .(date, documents)], id = "date", all = TRUE)) +
     geom_line(aes(x = date, y = value, color = variable, group = variable)) +
-    ggtitle(paste0("Number of documents over time (by ", by, ")")) +
     theme_bw() +
     scale_x_date(name = "Date", date_labels = "%m-%Y") +
-    scale_y_continuous(name = "Count") +
+    scale_y_continuous(name = paste0("Number of documents (by ", by, ")")) +
     plot_theme(legendPos = "none")
 
-  freqAllMelt <- melt(freqAll[, !"documents"], id = "date", all = TRUE)
+  freqAllMelt <- data.table::melt(freqAll[, !"documents"], id = "date", all = TRUE)
   legendPos <- ifelse(length(unique(freqAllMelt[["variable"]])) <= 12, "top", "none")
   featPlot <- ggplot(freqAllMelt) +
     geom_line(aes(x = date, y = value, color = variable, group = variable)) +
-    ggtitle(paste0("Feature statistics over time (by ", by, ")")) +
     theme_bw() +
     scale_x_date(name = "Date", date_labels = "%m-%Y") +
-    scale_y_continuous(name = "Count") +
+    scale_y_continuous(name = paste0("Feature count (by ", by, ")")) +
     plot_theme(legendPos)
 
-  tokPlot <- ggplot(melt(tokensDT[, !"totalTokens"], id = "date", all = TRUE)) +
+  tokPlot <- ggplot(data.table::melt(tokensDT[, !"totalTokens"], id = "date", all = TRUE)) +
     geom_line(aes(x = date, y = value, color = variable, group = variable)) +
-    ggtitle(paste0("Token statistics over time (by ", by, ")")) +
     theme_bw() +
     scale_x_date(name = "Date", date_labels = "%m-%Y") +
-    scale_y_continuous(name = "Count") +
+    scale_y_continuous(name = paste0("Token count (by ", by, ")")) +
     plot_theme(legendPos = "top")
 
   # output
@@ -408,10 +412,10 @@ as.sento_corpus.corpus <- function(x, dates = NULL, do.clean = FALSE) {
       stop("The number of dates in 'dates' should be equal to the number of documents.")
     features$date <- dates # avoids accidental duplication
   }
-  dt <- data.table("id" = quanteda::docnames(x),
-                   "texts" = quanteda::texts(x),
-                   features) # includes date column
-  setcolorder(dt, c("id", "date", "texts"))
+  dt <- data.table::data.table("id" = quanteda::docnames(x),
+                               "texts" = quanteda::texts(x),
+                               features) # includes date column
+  data.table::setcolorder(dt, c("id", "date", "texts"))
   sento_corpus(dt, do.clean)
 }
 
@@ -444,10 +448,10 @@ to_sento_corpus_tm <- function(x, dates, do.clean, texts, hasLocalDate = FALSE) 
       stop("The number of dates in 'dates' should be equal to the number of documents.")
     features$date <- dates
   }
-  dt <- data.table("id" = unlist(NLP::meta(x, "id")),
-                   "texts" = texts,
-                   features) # includes date column
-  setcolorder(dt, c("id", "date", "texts"))
+  dt <- data.table::data.table("id" = unlist(NLP::meta(x, "id")),
+                               "texts" = texts,
+                               features) # includes date column
+  data.table::setcolorder(dt, c("id", "date", "texts"))
   sento_corpus(dt, do.clean)
 }
 
@@ -511,5 +515,17 @@ to_sento_corpus_tm <- function(x, dates, do.clean, texts, hasLocalDate = FALSE) 
 #' @export
 as.sento_corpus <- function(x, dates = NULL, do.clean = FALSE) {
   UseMethod("as.sento_corpus", x)
+}
+
+#' @export
+as.data.table.sento_corpus <- function(x, ...) {
+  dt <- data.table::data.table(id = quanteda::docnames(x), x$documents)
+  data.table::setcolorder(dt, c("id", "date", "texts"))
+  dt
+}
+
+#' @export
+as.data.frame.sento_corpus <- function(x, ...) {
+  x$documents[, c("date", "texts", colnames(x$documents)[-c(1:2)])]
 }
 

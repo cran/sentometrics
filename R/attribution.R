@@ -19,7 +19,7 @@ attributions_docs <- function(sento_measures, s, sentDates, seqDates, W, cols, r
       return(colAttr)
     })
     attribs <- Reduce(`+`, lapply(sentFull, rowSums, na.rm = TRUE)) # sum document values over time weighting schemes
-    out <- data.table(sents[, c("id")], date = sents$date, attrib = attribs)
+    out <- data.table::data.table(sents[, c("id")], date = sents$date, attrib = attribs)
     return(out)
   })
   names(attribsDocs) <- refDates
@@ -28,12 +28,12 @@ attributions_docs <- function(sento_measures, s, sentDates, seqDates, W, cols, r
 
 attributions_lags <- function(s, sentDates, seqDates, W, cols, sento_measures, measures, coeffs,
                               attribsDocs, tNames, do.normalize) {
-  B <- sento_measures$attribWeights$B
+  B <- sento_measures$attribWeights[["B"]]
   nLags <- nrow(B)
   namesLags <- get_names_lags(nLags)
   attribsLag <- lapply(names(attribsDocs), function(d) {
     if (is.null(attribsDocs[[d]])) {
-      doc <- data.table(date = "xxxx-yy-zz", attrib = 0) # throw-away template
+      doc <- data.table::data.table(date = "xxxx-yy-zz", attrib = 0) # throw-away template
     } else {
       doc <- attribsDocs[[d]][, list(attrib = sum(attrib)), by = date]
     }
@@ -64,10 +64,10 @@ attributions_lags <- function(s, sentDates, seqDates, W, cols, sento_measures, m
         attribFill <- sum(unlist(sentFull), na.rm = TRUE)
         return(attribFill)
       })
-      doc <- rbind(doc, data.table(lag = namesLags[lagsMissing], attrib = attribFills))
+      doc <- rbind(doc, data.table::data.table(lag = namesLags[lagsMissing], attrib = attribFills))
       doc <- doc[order(match(lag, namesLags))][lag %in% namesLags]
     } else {
-      doc <- rbind(doc, data.table(lag = namesLags[lagsMissing], attrib = 0))
+      doc <- rbind(doc, data.table::data.table(lag = namesLags[lagsMissing], attrib = 0))
       doc <- doc[order(match(lag, namesLags))][lag %in% namesLags]
     }
     return(doc)
@@ -89,9 +89,9 @@ attributions_dims <- function(sento_measures, measures, cols, refDates, loc, coe
                               do.normalize, dimNames, missingNames, type) {
   attribsDim <- lapply(dimNames, function(x) {
     sel <- cols[stringi::stri_detect(cols, regex = paste0("\\b", x, "\\b"))]
-    coeffsIn <- data.table(matrix(coeffs[sel], nrow = length(loc), ncol = length(coeffs[sel]), byrow = TRUE))
+    coeffsIn <- data.table::data.table(matrix(coeffs[sel], nrow = length(loc), ncol = length(coeffs[sel]), byrow = TRUE))
     attribs <- rowSums(coeffsIn * measures[loc, sel, with = FALSE, drop = FALSE], na.rm = TRUE)
-    attr <- data.table(date = refDates, attrib = attribs)
+    attr <- data.table::data.table(date = refDates, attrib = attribs)
     return(attr)
   })
   names(attribsDim) <- dimNames
@@ -115,7 +115,7 @@ attributions_dims <- function(sento_measures, measures, cols, refDates, loc, coe
 
   # get appropriate sentiment measures from sento_measures input object
   discarded <- sento_model$discarded
-  measures <- as.data.table(sento_measures)[, c(TRUE, !discarded), with = FALSE]
+  measures <- data.table::as.data.table(sento_measures)[, c(TRUE, !discarded), with = FALSE]
 
   # set dates at which to do attribution
   sampleDates <- sento_model$dates
@@ -246,11 +246,11 @@ attributions.sento_modelIter <- compiler::cmpfun(.attributions.sento_modelIter)
 #' if \code{model} is a \code{sento_model} object). All dates should also be in \code{get_dates(sento_measures)}. If
 #' \code{NULL} (default), attribution is calculated for all in-sample dates. Ignored if \code{model} is a \code{sento_modelIter}
 #' object, for which attribution is calculated for all out-of-sample prediction dates.
-#' @param factor the factor level as a single \code{character} vector for which attribution has to be calculated in
-#' case of (a) multinomial model(s). Ignored for linear and binomial models.
+#' @param factor the factor level as a single \code{character} vector to calculate attribution
+#' for in case of (a) multinomial model(s). Ignored for linear and binomial models.
 #'
 #' @return A \code{list} of class \code{attributions}, with \code{"documents"}, \code{"lags"}, \code{"lexicons"},
-#' \code{"features"} and \code{"time"} as dimensions for which aggregation is computed. The last four dimensions are
+#' \code{"features"} and \code{"time"} as attribution dimensions. The last four dimensions are
 #' \code{data.table}s having a \code{"date"} column and the other columns the different components of the dimension, with
 #' the attributions as values. Document-level attribution is further decomposed into a \code{data.table} per date, with
 #' \code{"id"}, \code{"date"} and \code{"attrib"} columns. If \code{do.lags = FALSE}, the \code{"lags"} element is set
@@ -287,15 +287,18 @@ attributions <- function(model, sento_measures, do.lags = TRUE, do.normalize = F
 plot.attributions <- function(x, group = "features", ...) {
   if (!(group %in% c("lags", "lexicons", "features", "time")))
     stop("The 'group' argument should be either 'lags', 'lexicons', 'features' or 'time'.")
-  attributions <- x
-  attributions <- attributions[[group]]
+  attributions <- x[[group]]
   if (group == "lags" && is.null(attributions))
     stop("No 'lags' attribution is calculated. Set the 'do.lags' argument in the attributions() function to TRUE.")
-  attributionsMelt <- melt(attributions, id.vars = "date", variable.factor = FALSE)
+  attributionsMelt <- data.table::melt(attributions, id.vars = "date", variable.factor = FALSE)
+  attributionsMelt[, "pos" := ifelse(value >= 0, value, 0)][, "neg" := ifelse(value < 0, value, -1e-36)]
   attributionsMelt <- attributionsMelt[order(rank(as.character(variable)))]
   legendPos <- ifelse(length(unique(attributionsMelt[["variable"]])) <= 12, "top", "none")
-  p <- ggplot(data = attributionsMelt, aes(x = date, y = value, group = variable, color = variable)) +
-    geom_area(aes(fill = variable), alpha = 1) +
+  p <- ggplot(data = attributionsMelt, aes(x = date, fill = variable, color = variable)) +
+    # geom_area(aes(fill = variable), alpha = 1) +
+    geom_area(aes(y = pos), alpha = 1) +
+    geom_area(aes(y = neg), alpha = 1) +
+    # geom_ribbon(aes(ymin = 0, ymax = value), alpha = 0.5) +
     geom_hline(yintercept = 0, size = 0.50, linetype = "dotted") +
     scale_fill_grey(start = 0, end = 1) +
     scale_x_date(name = "Date", date_labels = "%m-%Y") +

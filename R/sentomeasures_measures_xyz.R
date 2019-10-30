@@ -22,14 +22,11 @@
 #' @return A modified \code{sento_measures} object.
 #'
 #' @examples
-#' data("usnews", package = "sentometrics")
-#' data("list_lexicons", package = "sentometrics")
-#' data("list_valence_shifters", package = "sentometrics")
-#'
 #' # construct a sento_measures object to start with
-#' corpus <- sento_corpus(corpusdf = usnews)
+#' corpus <- sento_corpus(corpusdf = sentometrics::usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- sento_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
+#' l <- sento_lexicons(sentometrics::list_lexicons[c("LM_en", "HENRY_en")],
+#'                     sentometrics::list_valence_shifters[["en"]])
 #' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "day", lag = 7, fill = "none")
 #' sento_measures <- sento_measures(corpusSample, l, ctr)
 #'
@@ -61,18 +58,21 @@ measures_fill <- function(sento_measures, fill = "zero", dateBefore = NULL, date
   }
 
   ts <- seq.Date(start, end, by = by) # continuous date series
-  dt <- data.table(date = ts)
+  dt <- data.table::data.table(date = ts)
 
   # join and fill as provided into new measures
-  measures <- as.data.table(sento_measures)
+  measures <- data.table::as.data.table(sento_measures)
   measuresFill <- merge(dt, measures, by = "date", all = TRUE) # fills with NA
   if (fill == "zero") {
     measuresFill[is.na(measuresFill)] <- 0
   } else if (fill == "latest") {
     if (!is.null(dateBefore)) measuresFill[1, 2:ncol(measures)] <- measures[1, -1]
-    measuresFill <- cbind(dt, as.data.table(fill_NAs(as.matrix(measuresFill[, -1]))))
+    measuresFill <- cbind(dt, data.table::as.data.table(fill_NAs(as.matrix(measuresFill[, -1]))))
   } else stop("Input variable 'fill' should be either 'zero' or 'latest'.")
-  measuresFill <- data.table(date = ts, measuresFill[, lapply(.SD, as.numeric), .SDcols = colnames(measures)[-1]])
+  measuresFill <- data.table::data.table(
+    date = ts,
+    measuresFill[, lapply(.SD, as.numeric), .SDcols = colnames(measures)[-1]]
+  )
 
   sento_measures$measures <- measuresFill
   sento_measures$stats <- compute_stats(sento_measures) # will be overwritten at end of aggregate_time() call
@@ -82,6 +82,9 @@ measures_fill <- function(sento_measures, fill = "zero", dateBefore = NULL, date
 
 check_agg_dimensions <- function(sento_measures, features = NULL, lexicons = NULL, time = NULL) {
   check_class(sento_measures, "sento_measures")
+
+  if (is.null(features) && is.null(lexicons) && is.null(time))
+    warning("No aggregation to perform. Input sento_measures object is returned.", call. = FALSE)
 
   # check if columns to aggregate exist (missings)
   # check if aggregations have at least two columns to combine and are unique (tooFew)
@@ -123,62 +126,15 @@ check_agg_dimensions <- function(sento_measures, features = NULL, lexicons = NUL
   return(list(stop = stop, msg1 = msg1, msg2 = msg2))
 }
 
-#' Aggregate sentiment measures into multiple weighted global sentiment indices
-#'
-#' @author Samuel Borms
-#'
-#' @description Aggregates all sentiment measures into a weighted global textual sentiment measure for each of the
-#' \code{lexicons}, \code{features}, and \code{time} dimensions.
-#'
-#' @details This particular function returns no new \code{sento_measures} object. The measures are constructed
-#' from weights that indicate the importance (and sign) along each component from the
-#' \code{lexicons}, \code{features}, and \code{time} dimensions. There is no restriction in terms of allowed weights. For
-#' example, the global index based on the supplied lexicon weights (\code{"globLex"}) is obtained first by multiplying
-#' every sentiment measure with its corresponding weight (meaning, the weight given to the lexicon the sentiment is
-#' computed with), then by taking the average per date.
-#'
-#' @param sento_measures a \code{sento_measures} object created using \code{\link{sento_measures}}.
-#' @param lexicons a \code{numeric} vector of weights, of size \code{length(sento_measures$lexicons)}, in the same order.
-#' By default set to 1, which means equally weighted.
-#' @param features a \code{numeric} vector of weights, of size \code{length(sento_measures$features)}, in the same order.
-#' By default set to 1, which means equally weighted.
-#' @param time a \code{numeric} vector of weights, of size \code{length(sento_measures$time)}, in the same order. By default
-#' set to 1, which means equally weighted.
-#'
-#' @return A \code{data.table} with the different types of weighted global sentiment measures, named \code{"globLex"},
-#' \code{"globFeat"}, \code{"globTime"} and \code{"global"}, with \code{"date"} as the first column. The last measure is an average
-#' of the the three other measures.
-#'
-#' @seealso \code{\link{sento_model}}
-#'
-#' @examples
-#' data("usnews", package = "sentometrics")
-#' data("list_lexicons", package = "sentometrics")
-#' data("list_valence_shifters", package = "sentometrics")
-#'
-#' # construct a sento_measures object to start with
-#' corpus <- sento_corpus(corpusdf = usnews)
-#' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- sento_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
-#' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "year", lag = 3)
-#' sento_measures <- sento_measures(corpusSample, l, ctr)
-#'
-#' # aggregate into one global sentiment measure given a weighting for lexicons and features
-#' global <- measures_global(sento_measures,
-#'                           lexicons = c(0.40, 0.60),
-#'                           features = c(0.10, -0.20, 0.30, -1),
-#'                           time = 1)
-#'
-#' @export
-measures_global <- function(sento_measures, lexicons = 1, features = 1, time = 1) {
+measures_global <- function(sento_measures, lexicons = NULL, features = NULL, time = NULL) {
   check_class(sento_measures, "sento_measures")
 
   dims <- get_dimensions(sento_measures)
   n <- sapply(dims, length)
   weightsInp <- list(features, lexicons, time)
   weights <- sapply(1:3, function(i) {
-    if (length(weightsInp[[i]]) == 1)
-      w <- as.list(rep(1/n[i], n[i])) # modify weights if equal to default value of 1
+    if (is.null(weightsInp[[i]]))
+      w <- as.list(rep(1/n[i], n[i])) # modify weights if equal to default value of NULL
     else {
       w <- as.list(weightsInp[[i]])
       if (length(w) != n[i])
@@ -188,7 +144,7 @@ measures_global <- function(sento_measures, lexicons = 1, features = 1, time = 1
     return(w)
   })
 
-  measuresLong <- as.data.table(sento_measures, format = "long")
+  measuresLong <- data.table::as.data.table(sento_measures, format = "long")
   measuresLong[, "wFeat" := unlist(weights[[1]][measuresLong[["features"]]])] # weights features
   measuresLong[, "wLex" := unlist(weights[[2]][measuresLong[["lexicons"]]])] # weights lexicon
   measuresLong[, "wTime" :=- unlist(weights[[3]][measuresLong[["time"]]])] # weights time
@@ -204,11 +160,12 @@ measures_global <- function(sento_measures, lexicons = 1, features = 1, time = 1
 #'
 #' @author Jeroen Van Pelt, Samuel Borms, Andres Algaba
 #'
-#' @description Updates a sento_measures object based on a new corpus provided. Sentiment for the unseen corpus
-#' texts calculated and aggregated applying the control variables from the input sento_measures object.
+#' @description Updates a \code{sento_measures} object based on a new \code{sento_corpus} provided.
+#' Sentiment for the unseen corpus texts calculated and aggregated applying the control variables
+#' from the input \code{sento_measures} object.
 #'
-#' @param sento_corpus a \code{sento_corpus} object created with \code{\link{sento_corpus}}.
 #' @param sento_measures \code{sento_measures} object created with \code{\link{sento_measures}}
+#' @param sento_corpus a \code{sento_corpus} object created with \code{\link{sento_corpus}}.
 #' @param lexicons a \code{sento_lexicons} object created with \code{\link{sento_lexicons}}.
 #
 #' @return An updated \code{sento_measures} object.

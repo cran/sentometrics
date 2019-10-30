@@ -15,7 +15,8 @@ one of the built-in lexicons accessible via \code{list_lexicons}.}
 and a \code{"y"} or \code{"t"} column. The first column has the words, \code{"y"} has the values for bigram
 shifting, and \code{"t"} has the types of the valence shifter for a clustered approach to sentiment calculation
 (supported types: \code{1} = negators, \code{2} = amplifiers, \code{3} = deamplifiers, \code{4} = adversative conjunctions).
-If three columns are provided, the first two will be considered only. This argument can be one of the
+Type \code{4} is only used in a clusters-based sentence-level sentiment calculation.
+If three columns are provided, only the first two will be considered. This argument can be one of the
 built-in valence word lists accessible via \code{list_valence_shifters}. A word that appears in both a
 lexicon and the valence word list is prioritized as a lexical entry during sentiment calculation. If
 \code{NULL}, valence shifting is not applied in the sentiment analysis.}
@@ -44,7 +45,7 @@ data("list_valence_shifters", package = "sentometrics")
 l1 <- sento_lexicons(list_lexicons[c("LM_en", "HENRY_en")])
 
 # including a self-made lexicon, with and without valence shifters
-lexIn <- c(list(myLexicon = data.table(w = c("nice", "boring"), s = c(2, -1))),
+lexIn <- c(list(myLexicon = data.table::data.table(w = c("nice", "boring"), s = c(2, -1))),
            list_lexicons[c("GI_en")])
 valIn <- list_valence_shifters[["en"]]
 l2 <- sento_lexicons(lexIn)

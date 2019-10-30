@@ -61,7 +61,7 @@
 #' @seealso \code{\link{sento_model}}
 #'
 #' @references Tibshirani and Taylor (2012). ``Degrees of freedom in LASSO problems''.
-#' \emph{The Annals of Statistics 40, 1198-12}, \url{https://doi.org/10.1214/12-AOS1003}.
+#' \emph{The Annals of Statistics 40, 1198-1232}, \url{https://doi.org/10.1214/12-AOS1003}.
 #' @references Zou, Hastie and Tibshirani (2007). ``On the `degrees of freedom' of the LASSO''.
 #' \emph{The Annals of Statistics 35, 2173-2192}, \url{https://doi.org/10.1214/009053607000000127}.
 #'
@@ -232,10 +232,10 @@ ctr_model <- function(model = c("gaussian", "binomial", "multinomial"), type = c
 #' \item{lambdas}{calibrated lambdas.}
 #' \item{performance}{a \code{data.frame} with performance-related measures, being "\code{RMSFE}" (root mean squared
 #' forecasting error), "\code{MAD}" (mean absolute deviation), "\code{MDA}" (mean directional accuracy, in which's calculation
-#' zero is considered as a positive; in percentage points), "\code{accuracy}" (proportion of correctly predicted classes in case
-#' of a logistic regression; in percentage points), and each's respective individual values in the sample. Directional accuracy
+#' zero is considered as a positive; in p.p.), "\code{accuracy}" (proportion of correctly predicted classes in case
+#' of a logistic regression; in p.p.), and each's respective individual values in the sample. Directional accuracy
 #' is measured by comparing the change in the realized response with the change in the prediction between two consecutive time
-#' points (omitting the very first prediction, resulting in \code{NA}). Only the relevant performance statistics are given
+#' points (omitting the very first prediction as \code{NA}). Only the relevant performance statistics are given
 #' depending on the type of regression. Dates are as in the \code{"models"} output element, i.e., from the perspective of the
 #' sentiment measures.}
 #'
@@ -276,7 +276,7 @@ ctr_model <- function(model = c("gaussian", "binomial", "multinomial"), type = c
 #' plot(attributions1, "features")
 #'
 #' nx <- nmeasures(sento_measures) + ncol(x)
-#' newx <- runif(nx) * cbind(as.data.table(sento_measures)[, -1], x)[30:40, ]
+#' newx <- runif(nx) * cbind(data.table::as.data.table(sento_measures)[, -1], x)[30:40, ]
 #' preds <- predict(out1, newx = as.matrix(newx), type = "link")
 #'
 #' # an iterative out-of-sample analysis, parallelized
@@ -308,7 +308,7 @@ ctr_model <- function(model = c("gaussian", "binomial", "multinomial"), type = c
 #' out4 <- sento_model(sento_measures, yb, x = x, ctr = ctrCVb)
 #' summary(out4)}
 #'
-#' @importFrom glmnet predict.glmnet predict.elnet predict.lognet predict.multnet
+#' @import glmnet
 #' @export
 sento_model <- function(sento_measures, y, x = NULL, ctr) {
   check_class(sento_measures, "sento_measures")
@@ -736,11 +736,11 @@ plot.sento_modelIter <- function(x, ...) {
     plotter <- geom_point()
     scaleY <- scale_y_discrete(name = "Response")
   }
-  data <- data.frame(date = row.names(sento_modelIter$performance$raw),
-                     realized = sento_modelIter$performance$raw$response,
-                     prediction = sento_modelIter$performance$raw$predicted)
+  data <- data.table::data.table(date = row.names(sento_modelIter$performance$raw),
+                                 realized = sento_modelIter$performance$raw$response,
+                                 prediction = sento_modelIter$performance$raw$predicted)
   if (mF != "gaussian") data[, 2:3] <- lapply(data[, 2:3], as.character)
-  melted <- melt(data, id.vars = "date")
+  melted <- data.table::melt(data, id.vars = "date")
   p <- ggplot(data = melted, aes(x = as.Date(date), y = value, color = variable)) +
     plotter +
     scale_x_date(name = "Date", date_labels = "%m-%Y") +
@@ -755,7 +755,7 @@ plot.sento_modelIter <- function(x, ...) {
 #' @author Samuel Borms
 #'
 #' @description Prediction method for \code{sento_model} class, with usage along the lines of
-#' \code{predict.glmnet}, but simplified in terms of parameters.
+#' \code{\link{predict.glmnet}}, but simplified in terms of parameters.
 #'
 #' @param object a \code{sento_model} object created with \code{\link{sento_model}}.
 #' @param newx a data \code{matrix} used for the prediction(s), row-by-row; see
@@ -771,6 +771,7 @@ plot.sento_modelIter <- function(x, ...) {
 #'
 #' @seealso \code{\link{predict.glmnet}}, \code{\link{sento_model}}
 #'
+#' @import glmnet
 #' @export
 predict.sento_model <- function(object, newx, type = "response", offset = NULL, ...) {
   stopifnot(is.matrix(newx))
@@ -796,7 +797,7 @@ predict.sento_model <- function(object, newx, type = "response", offset = NULL, 
 #' @param models a named \code{list} of \code{sento_modelIter} objects. All models should be of the same family, being
 #' either \code{"gaussian"}, \code{"binomial"} or \code{"multinomial"}, and have performance data of the same dimensions.
 #' @param loss a single \code{character} vector, either \code{"DA"} (directional \emph{in}accuracy), \code{"error"}
-#' (prediction minus realized response variable), \code{"errorSq"} (squared errors), \code{"AD"} (absolute errors) or
+#' (predicted minus realized response variable), \code{"errorSq"} (squared errors), \code{"AD"} (absolute errors) or
 #' \code{"accuracy"} (\emph{in}accurate class predictions). This argument defines on what basis the model confidence set
 #' is calculated. The first four options are available for \code{"gaussian"} models, the last option applies only to
 #' \code{"binomial"} and \code{"multinomial"} models.
@@ -837,8 +838,8 @@ predict.sento_model <- function(object, newx, type = "response", offset = NULL, 
 #'                  h = 0, nSample = 120, start = 50)
 #' out1 <- sento_model(sentMeas, y, x = x, ctr = ctrM)
 #' out2 <- sento_model(sentMeas, y, x = NULL, ctr = ctrM)
-#' out3 <- sento_model(measures_select(sentMeas, "linear"), y, x = x, ctr = ctrM)
-#' out4 <- sento_model(measures_select(sentMeas, "linear"), y, x = NULL, ctr = ctrM)
+#' out3 <- sento_model(subset(sentMeas, select = "linear"), y, x = x, ctr = ctrM)
+#' out4 <- sento_model(subset(sentMeas, select = "linear"), y, x = NULL, ctr = ctrM)
 #'
 #' lossData <- get_loss_data(models = list(m1 = out1, m2 = out2, m3 = out3, m4 = out4),
 #'                           loss = "errorSq")

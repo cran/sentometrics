@@ -18,10 +18,11 @@ tokenize_texts <- function(x, tokens = NULL, type = "word") { # x embeds a chara
     } else if (type == "sentence") {
       sentences <- stringi::stri_split_boundaries(x, type = "sentence")
       tok <- lapply(sentences, function(sn) { # list of documents of list of sentences of words
-        stringi::stri_split_boundaries(
+        wo <- stringi::stri_split_boundaries(
           stringi::stri_trans_tolower(gsub(", ", " c_c ", sn)),
           type = "word", skip_word_none = TRUE, skip_word_number = TRUE
         )
+        wo[sapply(wo, length) != 0]
       })
     }
   } else tok <- tokens
@@ -32,29 +33,34 @@ compute_sentiment_lexicons <- function(x, tokens, dv, lexicons, how, do.sentence
   threads <- min(RcppParallel::defaultNumThreads(), nCore)
   RcppParallel::setThreadOptions(numThreads = threads)
   if (is.character(x)) x <- quanteda::corpus(x)
-  noValence <- is.null(lexicons[["valence"]])
   if (do.sentence == TRUE) {
     tokens <- tokenize_texts(quanteda::texts(x), tokens, type = "sentence")
+    valenceType <- ifelse(is.null(lexicons[["valence"]]), 0,
+                          ifelse(colnames(lexicons[["valence"]])[2] == "y", 1, 2))
     s <- compute_sentiment_sentences(unlist(tokens, recursive = FALSE),
-                                     lexicons, how, !noValence) # call to C++ code
-    dt <- data.table("id" = quanteda::docnames(x), "count" = sapply(tokens, length))
+                                     lexicons, how, valenceType) # call to C++ code
+    dt <- data.table::data.table("id" = quanteda::docnames(x), "n" = sapply(tokens, length))
     if (!is.null(dv)) dt <- cbind(dt, dv)
-    dt <- dt[rep(1:.N, count)][, "count" := NULL]
+    dt <- dt[rep(1:.N, n)][, "n" := NULL]
     dt[, "sentence_id" := seq(.N), by = id]
     s <- cbind(dt, s)
-    if (inherits(x, "sento_corpus")) setcolorder(s, c("id", "sentence_id", "date", "word_count"))
-    else
-      setcolorder(s, c("id", "sentence_id", "word_count"))
+    if (inherits(x, "sento_corpus")) {
+      data.table::setcolorder(s, c("id", "sentence_id", "date", "word_count"))
+    } else {
+      data.table::setcolorder(s, c("id", "sentence_id", "word_count"))
+    }
   } else {
     tokens <- tokenize_texts(quanteda::texts(x), tokens, type = "word")
-    if (noValence == TRUE) {
-      s <- compute_sentiment_onegrams(tokens, lexicons, how) # call to C++ code
+    if (is.null(lexicons[["valence"]])) { # call to C++ code
+      s <- compute_sentiment_onegrams(tokens, lexicons, how)
     } else {
-      s <- compute_sentiment_valence(tokens, lexicons, how) # call to C++ code
+      # if (4 %in% unique(lexicons$valence[["t"]]))
+      #   warning("Valence shifters of type 4 are only used for a sentiment calculation by sentence.")
+      s <- compute_sentiment_valence(tokens, lexicons, how)
     }
-    s <- data.table("id" = quanteda::docnames(x), s)
+    s <- data.table::data.table("id" = quanteda::docnames(x), s)
     if (!is.null(dv)) s <- cbind(s, dv)
-    if (inherits(x, "sento_corpus")) setcolorder(s, c("id", "date", "word_count"))
+    if (inherits(x, "sento_corpus")) data.table::setcolorder(s, c("id", "date", "word_count"))
   }
   s
 }
@@ -86,60 +92,39 @@ compute_sentiment_multiple_languages <- function(x, lexicons, languages, feature
   s[order(match(id, ids))]
 }
 
-#' Compute document-level sentiment across features and lexicons
+#' Compute textual sentiment across features and lexicons
 #'
 #' @author Samuel Borms, Jeroen Van Pelt, Andres Algaba
 #'
-#' @description Given a corpus of texts, computes (net) sentiment per document (and sentences) using the
-#' bag-of-words approach based on the lexicons provided and a choice of aggregation across words per document
-#' (or sentence).
+#' @description Given a corpus of texts, computes sentiment per document or sentence using the valence shifting
+#' augmented bag-of-words approach, based on the lexicons provided and a choice of aggregation across words.
 #'
-#' @details For a separate calculation of positive (resp. negative) sentiment, one has to provide distinct positive (resp.
-#' negative) lexicons. This can be done using the \code{do.split} option in the \code{\link{sento_lexicons}} function, which
-#' splits out the lexicons into a positive and a negative polarity counterpart. All \code{NA}s are converted to 0, under the
-#' assumption that this is equivalent to no sentiment. If \code{tokens = NULL} (as per default), texts are tokenized
-#' as unigrams. Punctuation and numbers are removed, but not stopwords. The number of words for each document is
-#' computed based on that same tokenization. All tokens are converted to lowercase, in line with what the
-#' \code{\link{sento_lexicons}} function does for the lexicons and valence shifters.
+#' @details For a separate calculation of positive (resp. negative) sentiment, provide distinct positive (resp.
+#' negative) lexicons (see the \code{do.split} option in the \code{\link{sento_lexicons}} function). All \code{NA}s
+#' are converted to 0, under the assumption that this is equivalent to no sentiment. Per default \code{tokens = NULL},
+#' meaning the corpus is internally tokenized as unigrams, with punctuation and numbers but not stopwords removed.
+#' All tokens are converted to lowercase, in line with what the \code{\link{sento_lexicons}} function does for the
+#' lexicons and valence shifters. Word counts are based on that same tokenization.
 #'
 #' @section Calculation:
 #' If the \code{lexicons} argument has no \code{"valence"} element, the sentiment computed corresponds to simple unigram
 #' matching with the lexicons [\emph{unigrams} approach]. If valence shifters are included in \code{lexicons} with a
-#' corresponding \code{"y"} column, these have the effect of modifying the polarity of a word detected from the lexicon if
-#' appearing right before such word (examples: not good, very bad or can't defend) [\emph{bigrams} approach]. If the valence
+#' corresponding \code{"y"} column, the polarity of a word detected from a lexicon gets multiplied with the associated
+#' value of a valence shifter if it appears right before the detected word (examples: not good or can't defend) [\emph{bigrams} approach]. If the valence
 #' table contains a \code{"t"} column, valence shifters are searched for in a cluster centered around a detected polarity
-#' word [\emph{clusters} approach]. The latter approach is similar along the one utilized by the \pkg{sentimentr} package,
-#' but simplified. A cluster amounts to four words before and two words after a polarity word. A cluster never overlaps with
+#' word [\emph{clusters} approach]. The latter approach is a simplified version of the one utilized by the \pkg{sentimentr}
+#' package. A cluster amounts to four words before and two words after a polarity word. A cluster never overlaps with
 #' a preceding one. Roughly speaking, the polarity of a cluster is calculated as \eqn{n(1 + 0.80d)S + \sum s}. The polarity
 #' score of the detected word is \eqn{S}, \eqn{s} represents polarities of eventual other sentiment words, and \eqn{d} is
 #' the difference between the number of amplifiers (\code{t = 2}) and the number of deamplifiers (\code{t = 3}). If there
 #' is an odd number of negators (\code{t = 1}), \eqn{n = -1} and amplifiers are counted as deamplifiers, else \eqn{n = 1}.
-#' All scores, whether per unigram, per bigram or per cluster, are summed within a document, before the scaling defined
-#' by the \code{how} argument is applied.
 #'
-#' The sentiment calculation on sentence level approaches each sentence as if it is a document. Depending on
-#' the input either the unigrams, bigrams or clusters approach is used. For the latter, we replicated exactly
-#' the default \pkg{sentimentr} package method, with a cluster of five words before and two words after the polarized
-#' word. If there are commas around the polarized word, the cluster is limited (extended) to the words after
-#' the previous comma and before the next comma. Adversative conjunctions (\eqn{adv}, \code{t = 4})
-#' are accounted for here. If the value \eqn{1 + 0.25adv} is greater (resp. smaller) than 1, it is added to
-#' (resp. substracted from) the total amplification weight.
-#'
-#' The \code{how = "proportionalPol"} option divides each document's sentiment
-#' score by the number of detected polarized words (counting words that appear multiple times by their frequency), instead
-#' of the total number of words which the \code{how = "proportional"} option gives. The \code{how = "counts"} option
-#' does no normalization. The \code{squareRootCounts} divides the sentiment by the square root of the number of tokens in each text.
-#' The \code{how = "UShaped"} option gives a higher weight to words at the beginning and end of the texts.
-#' The \code{how = "invertedUShaped"} option gives a lower weight to words at the beginning
-#' and the end of the texts. The \code{how = "exponential"} option gives gradually more weight the later the word appears in the text.
-#' The \code{ how = "invertedExponential"} option gives gradually less weight the later the words appears in the text. The \code{
-#' how = "TF"} option gives a weight proportional to the number of times a word appears in a text. The \code{how = "logarithmicTF"} option
-#' gives the same weight as \code{"TF"} but logarithmically scaled. The \code{how = "augmentedTF"} option can
-#' be used to prevent a bias towards longer documents. The weight is determined by dividing the raw frequency of a token by the raw frequency
-#' of the most occurring term in the document. The \code{how = "IDF"} option uses the logarithm of the division of the raw frequency of
-#' a word by the number of texts in which the word appears. By doing this, words appearing in multiple texts get a lower weight. The
-#' \code{how = "TFIDF"}, \code{how = "logarithmicTFIDF"} and \code{how = "augmentedTFIDF"} options use the same weights as their
-#' \code{IDF}-variant but then multiplied with the \code{how = "IDF"} option. See the vignette for more details.
+#' The sentence-level sentiment calculation approaches each sentence as if it is a document. Depending on the input either
+#' the unigrams, bigrams or clusters approach is used. We enhanced latter approach following more closely the default
+#' \pkg{sentimentr} settings. They use a cluster of five words before and two words after a polarized word. The cluster
+#' is limited to the words after a previous comma and before a next comma. Adversative conjunctions (\code{t = 4}) are
+#' accounted for here. The cluster is reweighted based on the value \eqn{1 + 0.25adv}, where \eqn{adv} is the difference
+#' between the number of adversative conjunctions found before and after the polarized word.
 #'
 #' @param x either a \code{sento_corpus} object created with \code{\link{sento_corpus}}, a \pkg{quanteda}
 #' \code{\link[quanteda]{corpus}} object, a \pkg{tm} \code{\link[tm]{SimpleCorpus}} object, a \pkg{tm}
@@ -148,8 +133,8 @@ compute_sentiment_multiple_languages <- function(x, lexicons, languages, feature
 #' \code{\link[quanteda]{docvars}} are considered as features over which sentiment will be computed. In
 #' case of a \code{character} vector, sentiment is only computed across lexicons.
 #' @param lexicons a \code{sento_lexicons} object created using \code{\link{sento_lexicons}}.
-#' @param how a single \code{character} vector defining how aggregation within documents should be performed. For currently
-#' available options on how aggregation can occur, see \code{\link{get_hows}()$words}.
+#' @param how a single \code{character} vector defining how to perform aggregation within
+#' documents or sentences. For available options, see \code{\link{get_hows}()$words}.
 #' @param tokens a \code{list} of tokenized documents, or if \code{do.sentence = TRUE} a \code{list} of
 #' a \code{list} of tokenized sentences. This allows to specify your own tokenization scheme. Can result from the
 #' \pkg{quanteda}'s \code{\link[quanteda]{tokens}} function, the \pkg{tokenizers} package, or other. Make sure the tokens are
@@ -157,25 +142,27 @@ compute_sentiment_multiple_languages <- function(x, lexicons, languages, feature
 #' may be spurious and errors could occur. By default set to \code{NULL}.
 #' @param nCore a positive \code{numeric} that will be passed on to the \code{numThreads} argument of the
 #' \code{\link[RcppParallel]{setThreadOptions}} function, to parallelize the sentiment computation across texts. A
-#' value of 1 (default) implies no parallelization. Parallelization is expected to improve speed of the sentiment
+#' value of 1 (default) implies no parallelization. Parallelization may improve speed of the sentiment
 #' computation only for sufficiently large corpora.
 #' @param do.sentence a \code{logical} to indicate whether the sentiment computation should be done on
 #' sentence-level rather than document-level. By default \code{do.sentence = FALSE}. The methodology defined
 #' in the \pkg{sentimentr} package is followed to carry out the computation.
 #'
-#' @return If \code{x} is a \code{sento_corpus} object, a \code{sentiment} object, i.e., a \code{data.table} containing
+#' @return If \code{x} is a \code{sento_corpus} object: a \code{sentiment} object, i.e., a \code{data.table} containing
 #' the sentiment scores \code{data.table} with an \code{"id"}, a \code{"date"} and a \code{"word_count"} column,
-#' and all lexicon-feature sentiment scores columns. A \code{sentiment} object can be used for aggregation into
-#' time series with the \code{\link{aggregate.sentiment}} function. If \code{do.sentence = TRUE}, an additional
-#' \code{"sentence_id"} column along the \code{"id"} column is added.
+#' and all lexicon-feature sentiment scores columns. If \code{do.sentence = TRUE}, an additional
+#' \code{"sentence_id"} column along the \code{"id"} column is added. The tokenized sentences are not
+#' provided but can be obtained as \code{stringi::stri_split_boundaries(texts, type = "sentence")}.
+#' A \code{sentiment} object can be aggregated (into time series) with the \code{\link{aggregate.sentiment}}
+#' function.
 #'
-#' @return If \code{x} is a \pkg{quanteda} \code{\link[quanteda]{corpus}} object, a sentiment scores
+#' @return If \code{x} is a \pkg{quanteda} \code{\link[quanteda]{corpus}} object: a sentiment scores
 #' \code{data.table} with an \code{"id"} and a \code{"word_count"} column, and all lexicon-feature
 #' sentiment scores columns.
 #'
-#' @return If \code{x} is a \pkg{tm} \code{SimpleCorpus} object, a \pkg{tm} \code{VCorpus} object, or a \code{character} vector,
-#' a sentiment scores \code{data.table} with an auto-created \code{"id"} column, a \code{"word_count"} column,
-#' and all lexicon sentiment scores columns.
+#' @return If \code{x} is a \pkg{tm} \code{SimpleCorpus} object, a \pkg{tm} \code{VCorpus} object, or a \code{character}
+#' vector: a sentiment scores \code{data.table} with an auto-created \code{"id"} column, a \code{"word_count"}
+#' column, and all lexicon sentiment scores columns.
 #'
 #' @examples
 #' data("usnews", package = "sentometrics")
@@ -208,7 +195,7 @@ compute_sentiment_multiple_languages <- function(x, lexicons, languages, feature
 #' sent4 <- compute_sentiment(corpusQSample, l1[1], how = "counts", tokens = toks)
 #'
 #' # from a SimpleCorpus object - unigrams approach
-#' scorp <- tm::SimpleCorpus(tm::DirSource(txt, encoding = "UTF-8"))
+#' scorp <- tm::SimpleCorpus(tm::DirSource(txt))
 #' sent5 <- compute_sentiment(scorp, l1, how = "proportional")
 #'
 #' # from a VCorpus object - unigrams approach
@@ -216,21 +203,24 @@ compute_sentiment_multiple_languages <- function(x, lexicons, languages, feature
 #' ## sentiment calculator handles multiple character vectors within
 #' ## a single corpus element as separate documents
 #' vcorp <- tm::VCorpus(tm::DirSource(reuters))
-#' sent6 <- compute_sentiment(vcorp, l1, how = "proportional")
+#' sent6 <- compute_sentiment(vcorp, l1)
 #'
 #' # from a sento_corpus object - unigrams approach with tf-idf weighting
 #' sent7 <- compute_sentiment(corpusSample, l1, how = "TFIDF")
 #'
 #' # sentence-by-sentence computation
-#' sent8 <- compute_sentiment(corpusSample, l1, how = "squareRootCounts",
+#' sent8 <- compute_sentiment(corpusSample, l1, how = "proportionalSquareRoot",
 #'                            do.sentence = TRUE)
 #'
 #' # from an artificially constructed multilingual corpus
 #' usnews[["language"]] <- "en" # add language column
 #' usnews$language[1:100] <- "fr"
-#' l_en <- sento_lexicons(list("FEEL_en" = list_lexicons$FEEL_en_tr))
-#' l_fr <- sento_lexicons(list("FEEL_fr" = list_lexicons$FEEL_fr))
-#' lexicons <- list(en = l_en, fr = l_fr)
+#' lEn <- sento_lexicons(list("FEEL_en" = list_lexicons$FEEL_en_tr,
+#'                            "HENRY" = list_lexicons$HENRY_en),
+#'                       list_valence_shifters$en)
+#' lFr <- sento_lexicons(list("FEEL_fr" = list_lexicons$FEEL_fr),
+#'                       list_valence_shifters$fr)
+#' lexicons <- list(en = lEn, fr = lFr)
 #' corpusLang <- sento_corpus(corpusdf = usnews[1:250, ])
 #' sent9 <- compute_sentiment(corpusLang, lexicons, how = "proportional")
 #'
@@ -254,36 +244,30 @@ compute_sentiment <- function(x, lexicons, how = "proportional", tokens = NULL, 
     if (!is_names_correct(names(lexicons)))
       stop("At least one lexicon's name contains '-'. Please provide proper names.")
   }
-  if (do.sentence == TRUE) {
-    if (!is.null(lexicons[["valence"]])) {
-      if (is.null(lexicons[["valence"]][["t"]])) {
-        stop("Column x and t expected in valence shifters when doing a sentence-based computation.")
-      }
-    }
-  }
   if (!inherits(lexicons, "sento_lexicons")) {
     # only a sento_corpus can have a language column and deal with a list of sento_lexicons
     if (!("sento_corpus" %in% class(x))) {
       stop("List of multiple lexicons only allowed in combination with a sento_corpus.")
     } else {
-      if (!is.null(quanteda::docvars(x, field = "language"))) {
+      if ("language" %in% names(quanteda::docvars(x))) {
         # if language is in sento_corpus, each language needs to be covered by the list of sento_lexicons objects
         if (!all(unique(quanteda::docvars(x, field = "language")) %in% names(lexicons))) {
           stop("Lexicons do not cover all languages in corpus.")
         }
-        nms <- c(names(lexicons), sapply(lexicons, names))
+        nms <- unname(c(names(lexicons), unlist(lapply(lexicons, names))))
+        nms <- nms[nms != "valence"]
         if (sum(duplicated(nms)) > 0) { # check for duplicated lexicon names
           duplics <- unique(nms[duplicated(nms)])
           stop(paste0("Names of lexicons within and/or across languages are not unique. ",
                       "Following names occur at least twice: ", paste0(duplics, collapse = ", "), "."))
         }
       } else { # if language not in sento_corpus, one sento_lexicons object is expected and not a list
-        stop("List of sento_lexicons objects only allowed if multiple languages in sento_corpus.")
+        stop("List of sento_lexicons objects only allowed if there is a language column in sento_corpus.")
       }
     }
   } else {
     if (inherits(x, "sento_corpus")) {
-      if("language" %in% names(quanteda::docvars(x)))
+      if ("language" %in% names(quanteda::docvars(x)))
         stop("Provide a list of sento_lexicons objects when having a language column in sento_corpus.")
     }
   }
@@ -291,13 +275,13 @@ compute_sentiment <- function(x, lexicons, how = "proportional", tokens = NULL, 
   UseMethod("compute_sentiment", x)
 }
 
-.compute_sentiment.sento_corpus <- function(x, lexicons, how, tokens = NULL, do.sentence = FALSE, nCore = 1) {
+.compute_sentiment.sento_corpus <- function(x, lexicons, how = "proportional", tokens = NULL, do.sentence = FALSE, nCore = 1) {
   nCore <- check_nCore(nCore)
 
   languages <- tryCatch(unique(quanteda::docvars(x, field = "language")), error = function(e) NULL)
   if (is.null(languages)) {
     features <- names(quanteda::docvars(x))[-1] # drop date column
-    dv <- setDT(quanteda::docvars(x)[c("date", features)])
+    dv <- data.table::as.data.table(quanteda::docvars(x)[c("date", features)])
     lexNames <- names(lexicons)[names(lexicons) != "valence"]
     s <- compute_sentiment_lexicons(x, tokens, dv, lexicons, how, do.sentence, nCore)
     s <- spread_sentiment_features(s, features, lexNames) # there is always at least one feature
@@ -315,7 +299,7 @@ compute_sentiment <- function(x, lexicons, how = "proportional", tokens = NULL, 
 #' @export
 compute_sentiment.sento_corpus <- compiler::cmpfun(.compute_sentiment.sento_corpus)
 
-.compute_sentiment.corpus <- function(x, lexicons, how, tokens = NULL, do.sentence = FALSE, nCore = 1) {
+.compute_sentiment.corpus <- function(x, lexicons, how = "proportional", tokens = NULL, do.sentence = FALSE, nCore = 1) {
   nCore <- check_nCore(nCore)
 
   if (ncol(quanteda::docvars(x)) == 0) {
@@ -323,7 +307,7 @@ compute_sentiment.sento_corpus <- compiler::cmpfun(.compute_sentiment.sento_corp
   } else {
     isNumeric <- sapply(quanteda::docvars(x), is.numeric)
     if (sum(isNumeric) == 0) features <- NULL else features <- names(isNumeric[isNumeric])
-    dv <- setDT(quanteda::docvars(x)[features])
+    dv <- data.table::as.data.table(quanteda::docvars(x)[features])
   }
 
   s <- compute_sentiment_lexicons(x, tokens, dv, lexicons, how, do.sentence, nCore)
@@ -340,7 +324,7 @@ compute_sentiment.sento_corpus <- compiler::cmpfun(.compute_sentiment.sento_corp
 #' @export
 compute_sentiment.corpus <- compiler::cmpfun(.compute_sentiment.corpus)
 
-.compute_sentiment.character <- function(x, lexicons, how, tokens = NULL, do.sentence = FALSE, nCore = 1) {
+.compute_sentiment.character <- function(x, lexicons, how = "proportional", tokens = NULL, do.sentence = FALSE, nCore = 1) {
   nCore <- check_nCore(nCore)
   s <- compute_sentiment_lexicons(x, tokens, dv = NULL, lexicons, how, do.sentence, nCore)
 
@@ -351,8 +335,8 @@ compute_sentiment.corpus <- compiler::cmpfun(.compute_sentiment.corpus)
 #' @export
 compute_sentiment.character <- compiler::cmpfun(.compute_sentiment.character)
 
-.compute_sentiment.VCorpus <- function(x, lexicons, how, tokens = NULL, do.sentence = FALSE, nCore = 1) {
-  compute_sentiment(unlist(lapply(x, "[", "content")),
+.compute_sentiment.VCorpus <- function(x, lexicons, how = "proportional", tokens = NULL, do.sentence = FALSE, nCore = 1) {
+  compute_sentiment(unlist(lapply(x, "[[", "content")),
                     lexicons, how, tokens, do.sentence, nCore)
 }
 
@@ -360,7 +344,7 @@ compute_sentiment.character <- compiler::cmpfun(.compute_sentiment.character)
 #' @export
 compute_sentiment.VCorpus <- compiler::cmpfun(.compute_sentiment.VCorpus)
 
-.compute_sentiment.SimpleCorpus <- function(x, lexicons, how, tokens = NULL, do.sentence = FALSE, nCore = 1) {
+.compute_sentiment.SimpleCorpus <- function(x, lexicons, how = "proportional", tokens = NULL, do.sentence = FALSE, nCore = 1) {
   compute_sentiment(as.character(as.list(x)),
                     lexicons, how, tokens, do.sentence, nCore)
 }
@@ -369,12 +353,12 @@ compute_sentiment.VCorpus <- compiler::cmpfun(.compute_sentiment.VCorpus)
 #' @export
 compute_sentiment.SimpleCorpus <- compiler::cmpfun(.compute_sentiment.SimpleCorpus)
 
-#' Merge sentiment objects horizontally or vertically row-wise
+#' Merge sentiment objects horizontally and/or vertically
 #'
 #' @author Samuel Borms
 #'
-#' @description Combines multiple sentiment objects with possibly different column names into a new
-#' sentiment object. Here, too, any resulting \code{NA} values are converted to zero.
+#' @description Combines multiple \code{sentiment} objects with possibly different column names
+#' into a new \code{sentiment} object. Here, too, any resulting \code{NA} values are converted to zero.
 #'
 #' @param ... \code{sentiment} objects to merge.
 #'
@@ -387,6 +371,7 @@ compute_sentiment.SimpleCorpus <- compiler::cmpfun(.compute_sentiment.SimpleCorp
 #'
 #' l1 <- sento_lexicons(list_lexicons[c("LM_en", "HENRY_en")])
 #' l2 <- sento_lexicons(list_lexicons[c("FEEL_en_tr")])
+#' l3 <- sento_lexicons(list_lexicons[c("LM_en", "HENRY_en", "FEEL_en_tr")])
 #'
 #' corp1 <- sento_corpus(corpusdf = usnews[1:200, ])
 #' corp2 <- sento_corpus(corpusdf = usnews[201:450, ])
@@ -398,41 +383,62 @@ compute_sentiment.SimpleCorpus <- compiler::cmpfun(.compute_sentiment.SimpleCorp
 #' s4 <- compute_sentiment(corp2, l1, "counts", do.sentence = TRUE)
 #' s5 <- compute_sentiment(corp3, l2, "proportional", do.sentence = TRUE)
 #' s6 <- compute_sentiment(corp3, l1, "counts", do.sentence = TRUE)
+#' s7 <- compute_sentiment(corp3, l3, "UShaped", do.sentence = TRUE)
 #'
 #' # straightforward row-wise merge
-#' sb1 <- merge(s1, s2, s3)
-#' nrow(sb1) # 700
+#' m1 <- merge(s1, s2, s3)
+#' nrow(m1) == 700 # TRUE
 #'
 #' # another straightforward row-wise merge
-#' sb2 <- merge(s4, s6)
+#' m2 <- merge(s4, s6)
 #'
 #' # merge of sentence and non-sentence calculations
-#' sb3 <- merge(s3, s6)
+#' m3 <- merge(s3, s6)
 #'
-#' # different methods add rows and/or columns
-#' sb4 <- merge(s4, s5)
-#' nrow(sb4) > nrow(sb2) # TRUE
+#' # different methods adds columns
+#' m4 <- merge(s4, s5)
+#' nrow(m4) == nrow(m2) # TRUE
+#'
+#' # different methods and weighting add rows and columns
+#' ## rows are added only when the different weighting
+#' ## approach for a specific method gives other sentiment values
+#' m5 <- merge(s4, s7)
+#' nrow(m5) > nrow(m4) # TRUE
 #'
 #' @export
 merge.sentiment <- function(...) {
   inp <- list(...)
   if (!all(sapply(inp, inherits, "sentiment")))
     stop("Not all inputs are sentiment objects.")
-  cols <- unique(do.call(c, lapply(inp, colnames)))
-  dts <- lapply(inp, function(dt) {
-    setDT(dt)
-    newCols <- setdiff(cols, colnames(dt))
-    if (length(newCols) > 0) dt[, setdiff(cols, colnames(dt)) := as.numeric(NA)]
-    dt
-  })
-  s <- Reduce(function(...) merge(..., all = TRUE), dts)[order(date, id)]
+
+  # cols <- sect <- unique(do.call(c, lapply(inp, colnames)))
+  # for (dt in inp) {
+  #   sect <- intersect(sect, colnames(dt))
+  # }
+  # dts <- lapply(inp, function(dt) {
+  #   dt <- data.table::data.table(dt)
+  #   # newCols <- setdiff(cols, colnames(dt))
+  #   # if (length(newCols) > 0) dt[, setdiff(cols, colnames(dt)) := as.numeric(NA)]
+  #   dt[]
+  # })
+  # s <- Reduce(function(...) merge(..., by = sect, all = TRUE), dts)[order(date, id)]
+
+  s <- data.table::as.data.table(inp[[1]])
+  for (j in 2:length(inp)) {
+    dt <- data.table::data.table(inp[[j]]) # no change by reference
+    s <- merge(s, dt, by = intersect(colnames(s), colnames(dt)), all = TRUE)
+  }
+
   if ("sentence_id" %in% colnames(s)) {
     s[, "sentence_id" := ifelse(is.na(sentence_id), 1, sentence_id)]
-    setcolorder(s, c("id", "sentence_id", "date"))
+    data.table::setcolorder(s, c("id", "sentence_id", "date"))
+    s <- s[order(date, id, sentence_id)]
   } else {
-    setcolorder(s, c("id", "date"))
+    data.table::setcolorder(s, c("id", "date"))
+    s <- s[order(date, id)]
   }
-  for (j in seq_along(s)) set(s, i = which(is.na(s[[j]])), j = j, value = 0)
+  for (j in seq_along(s)) data.table::set(s, i = which(is.na(s[[j]])), j = j, value = 0)
+
   class(s) <- c("sentiment", class(s))
   s
 }
@@ -446,14 +452,15 @@ merge.sentiment <- function(...) {
 #' sentiment values (across sentiment calculation methods) occur only for one document.
 #'
 #' @param sentiment a \code{sentiment} object created using \code{\link{compute_sentiment}} or
-#' \code{\link{to_sentiment}}.
-#' @param n a positive \code{numeric} value to indicate the number of dates associated to sentiment peaks to extract.
-#' If \code{n < 1}, it is interpreted as a quantile (for example, 0.07 would mean the 7\% most extreme dates).
+#' \code{\link{as.sentiment}}.
+#' @param n a positive \code{numeric} value to indicate the number of documents associated to sentiment
+#' peaks to extract. If \code{n < 1}, it is interpreted as a quantile (for example, 0.07 would mean the
+#' 7\% most extreme documents).
 #' @param type a \code{character} value, either \code{"pos"}, \code{"neg"} or \code{"both"}, respectively to look
-#' for the \code{n} dates related to the most positive, most negative or most extreme (in absolute terms) sentiment
+#' for the \code{n} documents related to the most positive, most negative or most extreme (in absolute terms) sentiment
 #' occurrences.
 #' @param do.average a \code{logical} to indicate whether peaks should be selected based on the average sentiment
-#' value per date.
+#' value per document.
 #'
 #' @return A vector of type \code{"character"} corresponding to the \code{n} extracted document identifiers.
 #'
@@ -526,7 +533,7 @@ peakdocs <- function(sentiment, n = 10, type = "both", do.average = FALSE) {
 #' dates <- sample(seq(as.Date("2015-01-01"), as.Date("2018-01-01"), by = "day"), 200, TRUE)
 #' word_count <- sample(150:850, 200, replace = TRUE)
 #' sent <- matrix(rnorm(200 * 8), nrow =  200)
-#' s1 <- s2 <- data.table(id = ids, date = dates, word_count = word_count, sent)
+#' s1 <- s2 <- data.table::data.table(id = ids, date = dates, word_count = word_count, sent)
 #' s3 <- data.frame(id = ids, date = dates, word_count = word_count, sent,
 #'                  stringsAsFactors = FALSE)
 #' s4 <- compute_sentiment(usnews$texts[201:400],
@@ -558,12 +565,12 @@ as.sentiment <- function(s) {
 
 #' @export
 as.sentiment.data.frame <- function(s) {
-  as.sentiment(as.data.table(s))
+  as.sentiment(data.table::as.data.table(s))
 }
 
 #' @export
 as.sentiment.data.table <- function(s) {
-  stopifnot(is.data.table(s))
+  stopifnot(data.table::is.data.table(s))
   colNames <- colnames(s)
   if (any(duplicated(colNames)))
     stop("No duplicated column names allowed.")
@@ -580,15 +587,15 @@ as.sentiment.data.table <- function(s) {
   sentCols <- colNames[!(colNames %in% nonSentCols)]
   if (length(sentCols) == 0)
     stop("There should be at least one sentiment scores column.")
-  if (!all(sapply(sentCols, function(i) inherits(s[[i]], "numeric"))))
+  if (!all(sapply(sentCols, function(i) is.numeric(s[[i]]))))
     stop("All sentiment value columns should be of type numeric.")
   newNames <- sapply(stringi::stri_split(sentCols, regex = "--"), function(name) {
     if (length(name) == 1) return(paste0(name, "--", "dummyFeature"))
     else if (length(name) >= 2) return(paste0(name[1], "--", name[2]))
   })
 
-  setnames(s, sentCols, newNames)
-  setcolorder(s, nonSentCols)
+  data.table::setnames(s, sentCols, newNames)
+  data.table::setcolorder(s, nonSentCols)
   s <- s[order(date)]
   class(s) <- c("sentiment", class(s))
   s

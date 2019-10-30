@@ -2,6 +2,7 @@
 context("Aggregation")
 
 library("sentometrics")
+library("data.table")
 library("quanteda")
 
 set.seed(123)
@@ -9,7 +10,7 @@ set.seed(123)
 # corpus, lexicon and aggregation control creation
 data("usnews")
 corpus <- quanteda::corpus_sample(sento_corpus(corpusdf = usnews), size = 1000)
-setorder(corpus$documents, "date", na.last=FALSE)
+data.table::setorder(corpus$documents, "date", na.last = FALSE)
 data("list_lexicons")
 lex <- sento_lexicons(list_lexicons[c("GI_en", "LM_en")])
 lexClust <- sento_lexicons(list_lexicons[c("GI_en", "LM_en", "HENRY_en")],
@@ -26,8 +27,17 @@ ctr2 <- ctr_agg(howWithin = "counts", howDocs = "proportional", howTime = c("equ
                 do.ignoreZeros = FALSE, do.sentence = TRUE)
 sentMeas2 <- sento_measures(corpus, lex, ctr2)
 
-ctr3 <- ctr_agg(howWithin = "counts", howDocs = "proportional", howTime = c("equal_weight", "linear", "own"), by = "year",
-                lag = 3, weights = data.frame(GI_en = c(0.3, 0.6, 0.1)))
+ctr3 <- ctr_agg(howWithin = "counts", howDocs = "inverseProportional", howTime = c("equal_weight", "own"),
+                by = "year", lag = 3, weights = data.frame(GI_en = c(0.3, 0.6, 0.1)))
+
+ctr4 <- ctr_agg(howWithin = "UShaped", howDocs = "inverseProportional", howTime = "exponential",
+                do.inverseExp = TRUE, alphas = c(0.1, 0.2, 0.3), by = "day", lag = 180)
+
+ctr5 <- ctr_agg(howWithin = "counts", howDocs = "exponential", alphaExpDocs = 0.2,
+                howTime = "linear", by = "year", lag = 3)
+
+ctr6 <- ctr_agg(howWithin = "augmentedTF", howDocs = "inverseExponential", alphaExpDocs = 0.1,
+                howTime = "equal_weight", by = "week", lag = 7)
 
 # sento_measures
 test_that("Number of columns coincide with provided dimensions", {
@@ -49,9 +59,8 @@ test_that("Aggregation control function breaks when wrong inputs supplied", {
 # aggregate.sentiment
 s1 <- compute_sentiment(corpus, lex, how = "proportional")
 s2 <- compute_sentiment(quanteda::texts(corpus), lex, how = "counts")
-s3 <- compute_sentiment(corpus, lexClust, how = "squareRootCounts", do.sentence = TRUE)
+s3 <- compute_sentiment(corpus, lexClust, how = "proportionalSquareRoot", do.sentence = TRUE)
 sentimentAgg <- aggregate(s3, ctr_agg(lag = 7), do.full = FALSE)
-wc <- cbind(sentimentAgg[, "word_count"], s1[, "word_count"])
 test_that("Test input and output of sentiment aggregation function", {
   expect_true(inherits(s1, "sentiment"))
   expect_true(inherits(s2, "data.table"))
@@ -61,7 +70,10 @@ test_that("Test input and output of sentiment aggregation function", {
   expect_true(inherits(aggregate(s3, ctr1, do.full = FALSE), "sentiment"))
   expect_error(aggregate(s2, ctr2))
   expect_error(sento_measures(corpus, lex, ctr3))
-  expect_true(all.equal(wc[, 1], wc[, 2]))
+  expect_true(inherits(sento_measures(corpus, lex, ctr4), "sento_measures"))
+  expect_true(inherits(sento_measures(corpus, lex, ctr5), "sento_measures"))
+  expect_true(inherits(sento_measures(corpus, lex, ctr6), "sento_measures"))
+  # expect_true(all.equal(sentimentAgg[["word_count"]], s1[["word_count"]]))
 })
 
 # peakdocs
