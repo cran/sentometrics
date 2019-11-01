@@ -1,6 +1,6 @@
-aa49c7c3251b5956f616e5891a0728dc *DESCRIPTION
+1668a13fbc8856f91acc29417a96a234 *DESCRIPTION
 012a8434e41765c6a0ef50d68d0f62d9 *NAMESPACE
-1b6731e9d3f2431d12184b15327987bf *NEWS.md
+44f8322e3b697b4a2ee86feeca8d46fb *NEWS.md
 eb0929e4c4179baa4a974817f779747c *R/RcppExports.R
 8c340c227a436170e5b3d6747993fb76 *R/attribution.R
 724cbd94867c4c32f57ae0dc707036ae *R/deprecated.R
@@ -80,7 +80,7 @@ f51c8507a9f402080e7328fe1fe5b039 *src/compute_sentiment_sentences.cpp
 f8be606fbd75416ba358212c9f512ee9 *src/compute_sentiment_valence.cpp
 23a2c0cc49dd21491d98d36cb9fdc6a7 *src/fill_NAs.cpp
 3d76b3e82f32257da91c7d3a8c3299f5 *src/get_dtf_vectors.cpp
-78130d6eb8949424567c6bd881ca63bf *src/utils.h
+430bd5f12b9d248a8f7f0ce01f2e2565 *src/utils.h
 7ea2ed68852a91d689932c2231c4b48e *tests/testthat.R
 c64fdb2f74e9245e8ce021668f6de9bc *tests/testthat/test_aggregation.R
 a40823c35ca8917da995866fd23f2431 *tests/testthat/test_attribution.R

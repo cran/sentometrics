@@ -2,7 +2,7 @@ Package: sentometrics
 Type: Package
 Title: An Integrated Framework for Textual Sentiment Time Series
         Aggregation and Prediction
-Version: 0.7.5
+Version: 0.7.6
 Authors@R: c(person("Samuel", "Borms", email = "samuel.borms@unine.ch", role = c("aut", "cre"), comment = c(ORCID = "0000-0001-9533-1870")),
   person("David", "Ardia", email = "david.ardia@hec.ca", role = c("aut"), comment = c(ORCID = "0000-0003-2823-782X")),
   person("Keven", "Bluteau", email = "keven.bluteau@unine.ch", role = c("aut"), comment = c(ORCID = "0000-0003-2990-4807")),
@@ -26,7 +26,7 @@ LinkingTo: Rcpp, RcppArmadillo, RcppParallel
 RoxygenNote: 6.1.1
 SystemRequirements: GNU make
 NeedsCompilation: yes
-Packaged: 2019-10-30 17:11:15 UTC; saborms
+Packaged: 2019-10-31 11:29:53 UTC; jeroe
 Author: Samuel Borms [aut, cre] (<https://orcid.org/0000-0001-9533-1870>),
   David Ardia [aut] (<https://orcid.org/0000-0003-2823-782X>),
   Keven Bluteau [aut] (<https://orcid.org/0000-0003-2990-4807>),
@@ -34,4 +34,4 @@ Author: Samuel Borms [aut, cre] (<https://orcid.org/0000-0001-9533-1870>),
   Jeroen Van Pelt [ctb],
   Andres Algaba [ctb]
 Repository: CRAN
-Date/Publication: 2019-10-30 17:40:07 UTC
+Date/Publication: 2019-11-01 07:20:08 UTC
