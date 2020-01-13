@@ -1,10 +1,13 @@
 
+# test_file("tests/testthat/test_sentiment_computation.R")
+
 context("Sentiment computation")
 
 library("sentometrics")
 library("data.table")
 library("quanteda")
 library("tm")
+library("stringi")
 
 set.seed(123)
 
@@ -17,7 +20,7 @@ txt <- system.file("texts", "txt", package = "tm")
 scorp <- tm::SimpleCorpus(tm::DirSource(txt))
 # scorp$content[1] <- "A text for which we want to calculate above average sentiment."
 # scorp$content[2] <- "A text for which we want to calculate below average sentiment."
-scorp$content[3] <- corpus$documents$text[3]
+scorp$content[3] <- quanteda::texts(corpus)[3]
 
 # VCorpus creation
 reuters <- system.file("texts", "crude", package = "tm")
@@ -46,6 +49,9 @@ names(lexWrong)[2] <- "frr"
 load(system.file("extdata", "test_data.rda", package = "sentometrics")) # benchmark sentiment scores
 
 sanity_sentiment <- function(texts, lexicon, valence = NULL) {
+  setkey(lexicon, "x")
+  if (!is.null(valence)) setkey(valence, "x")
+
   out <- rep(NA, length(texts))
   for (i in seq_along(texts)) {
     x <- texts[i]
@@ -54,12 +60,10 @@ sanity_sentiment <- function(texts, lexicon, valence = NULL) {
     )[[1]]
     lo <- which(tok %in% lexicon[["x"]])
     m <- tok[lo]
-    setkey(lexicon, "x")
     sc <- lexicon[m, y]
     before <- sapply(lo - 1, max, 1)
     vals <- rep(1, length(sc))
     if (!is.null(valence)) {
-      setkey(valence, "x")
       val <- which(tok[before] %in% valence$x)
       v <- tok[before][val]
       vals[val] <- valence[v, y]
@@ -67,6 +71,7 @@ sanity_sentiment <- function(texts, lexicon, valence = NULL) {
     ss <- sum(sc * vals)
     out[i] <- ss
   }
+
   out
 }
 
@@ -88,13 +93,13 @@ sentimentList <- list(
   s14 = compute_sentiment(corpus, lex, how = "inverseExponential"),
   s15 = compute_sentiment(corpus, lex, how = "UShaped"),
   s16 = compute_sentiment(corpus, lex, how = "inverseUShaped"),
-  s17 = compute_sentiment(corpus, lex, how = "TF"),
-  s18 = compute_sentiment(corpus, lex, how = "logarithmicTF"),
-  s19 = compute_sentiment(corpus, lex, how = "augmentedTF"),
-  s20 = compute_sentiment(corpus, lex, how = "IDF"),
+  # s17 = compute_sentiment(corpus, lex, how = "TF"),
+  # s18 = compute_sentiment(corpus, lex, how = "logarithmicTF"),
+  # s19 = compute_sentiment(corpus, lex, how = "augmentedTF"),
+  # s20 = compute_sentiment(corpus, lex, how = "IDF"),
   s21 = compute_sentiment(corpus, lex, how = "TFIDF"),
-  s22 = compute_sentiment(corpus, lex, how = "logarithmicTFIDF"),
-  s23 = compute_sentiment(corpus, lex, how = "augmentedTFIDF"),
+  # s22 = compute_sentiment(corpus, lex, how = "logarithmicTFIDF"),
+  # s23 = compute_sentiment(corpus, lex, how = "augmentedTFIDF"),
   s24 = compute_sentiment(corpusLang, lexLang, how = "proportionalSquareRoot")
 )
 
@@ -130,7 +135,7 @@ sentimentSentenceList <- list(
                          lexClust, how = "counts", do.sentence = TRUE),
   s4 = compute_sentiment(corpus, lexClust, how = "proportionalSquareRoot", do.sentence = TRUE),
   s5 = compute_sentiment(corpusLang, lexLang, how = "proportional", do.sentence = TRUE),
-  s6 = compute_sentiment(corpus, lex[1:3], how = "augmentedTFIDF", do.sentence = TRUE),
+  s6 = compute_sentiment(corpus, lex[1:3], how = "TFIDF", do.sentence = TRUE),
   s7 = compute_sentiment(corpus, lex, how = "inverseUShaped", do.sentence = TRUE)
 )
 
@@ -185,5 +190,15 @@ test_that("Correct binding of several sentiment objects", {
   expect_true(inherits(merge(sentimentList$s1, sentimentList$s2), "data.table"))
   expect_true(nrow(merge(sA, sB, sA)) == (2 * nrow(sA)))
   expect_true(ncol(merge(sentimentList$s7, sentimentList$s11)) == ncol(sentimentList$s7))
+})
+
+# tf-idf comparison sentometrics vs. quanteda
+toks <- stri_split_boundaries(stri_trans_tolower(quanteda::texts(corpus)), type = "word", skip_word_none = TRUE)
+dfmQ <- quanteda::dfm(as.tokens(toks)) %>% dfm_tfidf(k = 1)
+posScores <- rowSums(as.matrix(quanteda::dfm_select(dfmQ, lex$GI_en[y == 1, x])))
+negScores <- rowSums(as.matrix(quanteda::dfm_select(dfmQ, lex$GI_en[y == -1, x])))
+test_that("Same tf-idf scoring for sentometrics and quanteda", {
+  expect_equal(compute_sentiment(quanteda::texts(corpus), lex[-length(lex)], tokens = toks, "TFIDF")[["GI_en"]],
+               unname(posScores - negScores))
 })
 

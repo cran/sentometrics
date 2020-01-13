@@ -41,13 +41,13 @@ struct SentimentScorerBigrams : public RcppParallel::Worker {
       int nTokens = tokens.size();
       int nPuncts = 0;
       std::vector< double > tokenShifters(nTokens, 1.0);
-      std::vector< double > tokenWeights(nTokens,0.0);
+      std::vector< double > tokenWeights(nTokens, 0.0);
       std::vector< std::vector< double > > tokenScores(nTokens,std::vector< double >(nL, 0.0));
       std::unordered_map< std::string, double > freqMap;
       double maxTokenFrequency = 1.0;
       if (isFreqWeighting) {
         update_frequency_map(freqMap, frequencyMap, i);
-        update_max_token_frequency(maxTokenFrequency, freqMap, how);
+        // update_max_token_frequency(maxTokenFrequency, freqMap, how);
       }
 
       for (int j = 0; j < nTokens; j++) {

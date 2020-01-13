@@ -19,7 +19,7 @@ tokenize_texts <- function(x, tokens = NULL, type = "word") { # x embeds a chara
       sentences <- stringi::stri_split_boundaries(x, type = "sentence")
       tok <- lapply(sentences, function(sn) { # list of documents of list of sentences of words
         wo <- stringi::stri_split_boundaries(
-          stringi::stri_trans_tolower(gsub(", ", " c_c ", sn)),
+          stringi::stri_trans_tolower(gsub(", ", " c_c ", sn)), # reset commas
           type = "word", skip_word_none = TRUE, skip_word_number = TRUE
         )
         wo[sapply(wo, length) != 0]
@@ -32,7 +32,7 @@ tokenize_texts <- function(x, tokens = NULL, type = "word") { # x embeds a chara
 compute_sentiment_lexicons <- function(x, tokens, dv, lexicons, how, do.sentence = FALSE, nCore = 1) {
   threads <- min(RcppParallel::defaultNumThreads(), nCore)
   RcppParallel::setThreadOptions(numThreads = threads)
-  if (is.character(x)) x <- quanteda::corpus(x)
+  if (inherits(x, "character")) x <- quanteda::corpus(x)
   if (do.sentence == TRUE) {
     tokens <- tokenize_texts(quanteda::texts(x), tokens, type = "sentence")
     valenceType <- ifelse(is.null(lexicons[["valence"]]), 0,
@@ -145,8 +145,7 @@ compute_sentiment_multiple_languages <- function(x, lexicons, languages, feature
 #' value of 1 (default) implies no parallelization. Parallelization may improve speed of the sentiment
 #' computation only for sufficiently large corpora.
 #' @param do.sentence a \code{logical} to indicate whether the sentiment computation should be done on
-#' sentence-level rather than document-level. By default \code{do.sentence = FALSE}. The methodology defined
-#' in the \pkg{sentimentr} package is followed to carry out the computation.
+#' sentence-level rather than document-level. By default \code{do.sentence = FALSE}.
 #'
 #' @return If \code{x} is a \code{sento_corpus} object: a \code{sentiment} object, i.e., a \code{data.table} containing
 #' the sentiment scores \code{data.table} with an \code{"id"}, a \code{"date"} and a \code{"word_count"} column,
@@ -262,13 +261,13 @@ compute_sentiment <- function(x, lexicons, how = "proportional", tokens = NULL, 
                       "Following names occur at least twice: ", paste0(duplics, collapse = ", "), "."))
         }
       } else { # if language not in sento_corpus, one sento_lexicons object is expected and not a list
-        stop("List of sento_lexicons objects only allowed if there is a language column in sento_corpus.")
+        stop("List of sento_lexicons objects only allowed if there is a 'language' column in sento_corpus.")
       }
     }
   } else {
     if (inherits(x, "sento_corpus")) {
       if ("language" %in% names(quanteda::docvars(x)))
-        stop("Provide a list of sento_lexicons objects when having a language column in sento_corpus.")
+        stop("Provide a list of sento_lexicons objects when having a 'language' column in sento_corpus.")
     }
   }
 

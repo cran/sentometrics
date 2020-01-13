@@ -105,7 +105,7 @@ ctr_agg <- function(howWithin = "proportional", howDocs = "equal_weight", howTim
     err <- c(err, paste0(howDocs, " is no current option for aggregation across documents."))
   }
   if (lag == 1) {
-    warning("The argument choice 'lag = 1' implies no time aggregation. We have kept a dummy weighting scheme 'dummyTime'.")
+    message("The choice 'lag = 1' implies no time aggregation, so we added a dummy weighting scheme 'dummyTime'.")
     howTime <- "own"
     weights <- data.frame(dummyTime = 1)
   }
@@ -117,12 +117,12 @@ ctr_agg <- function(howWithin = "proportional", howDocs = "equal_weight", howTim
   }
   if (!("own" %in% howTime) && is.data.frame(weights)) {
     howTime <- c(howTime, "own")
-    warning("The option 'own' is added to 'howTime' since a valid (not NULL) 'weights' data.frame was supplied.")
+    message("Option 'own' is added to 'howTime' because a 'weights' data.frame was supplied.")
   }
   if ("own" %in% howTime) {
     if (lag != nrow(weights)) {
       lag <- nrow(weights)
-      warning("Argument 'lag' is set equal to the number of rows in the 'weights' data.frame.")
+      message("Argument 'lag' is set to the number of rows in the 'weights' data.frame.")
     }
     if (!is_names_correct(colnames(weights))) {
       err <- c(err, "The column names in the 'weights' data.frame should not contain any '-'.")
@@ -257,8 +257,8 @@ sento_measures <- function(sento_corpus, lexicons, ctr) {
 #' sentiment measures. Can also be used to aggregate sentence-level sentiment scores into
 #' document-level sentiment scores. This function is called within the \code{\link{sento_measures}} function.
 #'
-#' @param x a \code{sentiment} object created using \code{\link{compute_sentiment}} (from a
-#' \code{sento_corpus} object), or an output from \code{\link{as.sentiment}}.
+#' @param x a \code{sentiment} object created using \code{\link{compute_sentiment}} (from a \code{sento_corpus}
+#' object) or using \code{\link{as.sentiment}}.
 #' @param ctr output from a \code{\link{ctr_agg}} call. The \code{howWithin} and \code{nCore} elements are ignored.
 #' @param do.full if \code{do.full = TRUE} (by default), does entire aggregation up to a \code{sento_measures}
 #' object, else only goes from sentence-level to document-level. Ignored if no \code{"sentence_id"} column in
@@ -284,7 +284,9 @@ sento_measures <- function(sento_corpus, lexicons, ctr) {
 #' l2 <- sento_lexicons(list_lexicons[c("LM_en", "HENRY_en")],
 #'                      list_valence_shifters[["en"]][, c("x", "t")])
 #' sent1 <- compute_sentiment(corpusSample, l1, how = "counts")
-#' sent2 <- compute_sentiment(corpusSample, l2, how = "counts", do.sentence = TRUE)
+#' sent2 <- compute_sentiment(corpusSample, l2, do.sentence = TRUE)
+#' sent3 <- compute_sentiment(quanteda::texts(corpusSample), l2,
+#'                            do.sentence = TRUE)
 #' ctr <- ctr_agg(howTime = c("linear"), by = "year", lag = 3)
 #'
 #' # aggregate into sentiment measures
@@ -292,8 +294,12 @@ sento_measures <- function(sento_corpus, lexicons, ctr) {
 #' sm2 <- aggregate(sent2, ctr)
 #'
 #' # two-step aggregation (first into document-level sentiment)
-#' sent3 <- aggregate(sent2, ctr, do.full = FALSE)
-#' sm3 <- aggregate(sent3, ctr)
+#' sd2 <- aggregate(sent2, ctr, do.full = FALSE)
+#' sm3 <- aggregate(sd2, ctr)
+#'
+#' # aggregation of a sentiment data.table
+#' cols <- c("word_count", names(l2)[-length(l2)])
+#' sd3 <- sent3[, lapply(.SD, sum), by = "id", .SDcols = cols]
 #'
 #' @importFrom stats aggregate
 #' @export
@@ -307,10 +313,17 @@ aggregate.sentiment <- function(x, ctr, do.full = TRUE, ...) {
   weightingParamTime <- ctr$time$weightingParam
   by <- weightingParamTime$by
 
-  if ("sentence_id" %in% colnames(x)) {
+  cols <- colnames(x)
+  if ("sentence_id" %in% cols) {
     x <- aggregate_sentences(x, how = howDocs, weightingParamDocs = weightingParamDocs)
     if (do.full == FALSE) return(x)
+    # if (do.full == TRUE && !("date" %in% cols)) {
+    #   warning("Aggregation only performed until document-level, since no 'date' column present.")
+    #   return(x)
+    # }
   }
+  # if (!("date" %in% cols)) stop("A document-level sentiment input should have a 'date' column for full aggregation.")
+
   aggDocs <- aggregate_docs(x, by = by, how = howDocs, weightingParamDocs = weightingParamDocs)
   aggDocs$ctr <- ctr
   sento_measures <- aggregate_time(aggDocs, how = howTime, weightingParamTime = weightingParamTime)
@@ -320,14 +333,18 @@ aggregate.sentiment <- function(x, ctr, do.full = TRUE, ...) {
 
 aggregate_sentences <- function(sentiment, how, weightingParamDocs) {
   wc <- sentiment[, .(word_count)]
-  dates <- sentiment[, .(date)]
   do.ignoreZeros <- weightingParamDocs$do.ignoreZeros
   alphaExpDocs <- weightingParamDocs$alphaExpDocs
+
   weights <- weights_across(sentiment, how, do.ignoreZeros, alphaExpDocs, by = "id")
-  sw <- data.table::data.table(id = sentiment[["id"]], sentiment[, -1:-4] * weights, wc, dates)
-  s <- sw[, lapply(.SD, function(x)
-    sum(x, na.rm = TRUE)), by = c("id", "date")] # implicitly assumes all id and date combinations are unique
-  data.table::setcolorder(s, c("id", "date", "word_count"))
+
+  if ("date" %in% colnames(sentiment)) {
+    sw <- data.table::data.table(id = sentiment[["id"]], sentiment[, .(date)], wc, sentiment[, -1:-4] * weights)
+    s <- sw[, lapply(.SD, sum, na.rm = TRUE), by = c("id", "date")] # assumes all id and date combinations are unique
+  } else {
+    sw <- data.table::data.table(id = sentiment[["id"]], wc, sentiment[, -1:-3] * weights)
+    s <- sw[, lapply(.SD, sum, na.rm = TRUE), by = "id"]
+  }
   class(s) <- c("sentiment", class(s))
   s
 }
@@ -494,8 +511,11 @@ peakdates <- function(sento_measures, n = 10, type = "both", do.average = FALSE)
 
 weights_across <- function(s, how = "proportional", do.ignoreZeros = TRUE, alpha = 0.1, by = "date") {
 
-  if ("id" %in% colnames(s) && !"id" %in% by) s <- s[, !"id"]
-  if ("sentence_id" %in% colnames(s) && !"sentence_id" %in% by) s <- s[, !"sentence_id"][, !"date"]
+  if ("id" %in% colnames(s) && !("id" %in% by)) s <- s[, !"id"]
+  if ("sentence_id" %in% colnames(s) && !("sentence_id" %in% by)) {
+    if ("date" %in% colnames(s)) s <- s[, !"sentence_id"][, !"date"]
+    else s <- s[, !"sentence_id"]
+  }
 
   if (how == "equal_weight") {
     if (do.ignoreZeros == TRUE) {
@@ -524,7 +544,7 @@ weights_across <- function(s, how = "proportional", do.ignoreZeros = TRUE, alpha
       weights <- s[, w := (1 / word_count) / sum(1 / word_count, na.rm = TRUE), by = eval(by)][, "w"]
       weights <- weights[, colnames(s)[-c(1:2)] := weights][, -1]
     }
-  }  else if (how == "exponential") {
+  } else if (how == "exponential") {
     # exponential w.r.t. words in document vs. total words in all documents per date
     if (do.ignoreZeros == TRUE) {
       docsIn <- s[, lapply(.SD, function(x)
@@ -548,7 +568,7 @@ weights_across <- function(s, how = "proportional", do.ignoreZeros = TRUE, alpha
                    by = eval(by)][, "w"]
       weights <- weights[, colnames(s)[-c(1:2)] := weights][, -1]
     }
-  }
+  } else stop("Weighting scheme not recognized.")
 
   weights
 }

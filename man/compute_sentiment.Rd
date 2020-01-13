@@ -4,8 +4,14 @@
 \alias{compute_sentiment}
 \title{Compute textual sentiment across features and lexicons}
 \usage{
-compute_sentiment(x, lexicons, how = "proportional", tokens = NULL,
-  do.sentence = FALSE, nCore = 1)
+compute_sentiment(
+  x,
+  lexicons,
+  how = "proportional",
+  tokens = NULL,
+  do.sentence = FALSE,
+  nCore = 1
+)
 }
 \arguments{
 \item{x}{either a \code{sento_corpus} object created with \code{\link{sento_corpus}}, a \pkg{quanteda}
@@ -27,8 +33,7 @@ constructed from (the texts from) the \code{x} argument, are unigrams, and prefe
 may be spurious and errors could occur. By default set to \code{NULL}.}
 
 \item{do.sentence}{a \code{logical} to indicate whether the sentiment computation should be done on
-sentence-level rather than document-level. By default \code{do.sentence = FALSE}. The methodology defined
-in the \pkg{sentimentr} package is followed to carry out the computation.}
+sentence-level rather than document-level. By default \code{do.sentence = FALSE}.}
 
 \item{nCore}{a positive \code{numeric} that will be passed on to the \code{numThreads} argument of the
 \code{\link[RcppParallel]{setThreadOptions}} function, to parallelize the sentiment computation across texts. A
