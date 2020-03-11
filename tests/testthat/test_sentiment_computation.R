@@ -122,7 +122,7 @@ test_that("Agreement between sentiment scores on document-level across input obj
   expect_error(compute_sentiment(corpusLang, lex, how = "proportional"))
   expect_true("language" %in% colnames(quanteda::docvars(corpusLang)))
   expect_error(compute_sentiment(corpusLang, lexWrong, how = "proportional"))
-  expect_true(all.equal(test_data, sentimentList[1:11])) # compare with old sentiment scores
+  expect_equal(test_data, sentimentList[1:11]) # compare with old sentiment scores
   expect_true(all.equal(sentimentList$s1$GI_en, sanity_sentiment(quanteda::texts(corpus), lex$GI_en, lex$valence)))
   expect_true(all.equal(sentimentList$s2$GI_en, sanity_sentiment(quanteda::texts(corpus), lex$GI_en)))
 })

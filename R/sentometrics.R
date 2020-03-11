@@ -27,7 +27,7 @@
 #' @references Ardia, Bluteau and Boudt (2019). ``Questioning the news about economic growth: Sparse forecasting using
 #' thousands of news-based sentiment values''. \emph{International Journal of Forecasting 35, 1370-1386},
 #' \url{https://doi.org/10.1016/j.ijforecast.2018.10.010}.
-#' @references Ardia, Bluteau, Borms and Boudt (2019). ``The R package sentometrics to compute, aggregate and
+#' @references Ardia, Bluteau, Borms and Boudt (2020). ``The R package sentometrics to compute, aggregate and
 #' predict with textual sentiment''. \emph{Working paper}, \url{https://doi.org/10.2139/ssrn.3067734}.
 "_PACKAGE"
 
@@ -77,7 +77,7 @@
 #' @references Loughran and McDonald (2011). ``When is a liability not a liability? Textual analysis, dictionaries, and 10-Ks''.
 #' \emph{Journal of Finance 66, 35-65}, \url{https://doi.org/10.1111/j.1540-6261.2010.01625.x}.
 #'
-#' @source \href{http://www.lirmm.fr/~abdaoui/FEEL}{FEEL lexicon}. Retrieved November 1, 2017.
+#' @source \href{https://doi.org/10.1007/s10579-016-9364-5}{FEEL lexicon}. Retrieved November 1, 2017.
 #' @source \href{http://www.wjh.harvard.edu/~inquirer/spreadsheet_guide.htm}{GI lexicon}. Retrieved November 1, 2017.
 #' @source \href{https://study.sagepub.com/sites/default/files/1\%20Henry\%202008_0.pdf}{HENRY lexicon}. Retrieved
 #' November 1, 2017.
