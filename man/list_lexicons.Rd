@@ -4,13 +4,15 @@
 \name{list_lexicons}
 \alias{list_lexicons}
 \title{Built-in lexicons}
-\format{A \code{list} with all built-in lexicons, appropriately named as \code{"NAME_language(_tr)"} .}
+\format{
+A \code{list} with all built-in lexicons, appropriately named as \code{"NAME_language(_tr)"} .
+}
 \source{
 \href{https://doi.org/10.1007/s10579-016-9364-5}{FEEL lexicon}. Retrieved November 1, 2017.
 
 \href{http://www.wjh.harvard.edu/~inquirer/spreadsheet_guide.htm}{GI lexicon}. Retrieved November 1, 2017.
 
-\href{https://study.sagepub.com/sites/default/files/1\%20Henry\%202008_0.pdf}{HENRY lexicon}. Retrieved
+\href{https://doi.org/10.1177/0021943608319388}{HENRY lexicon}. Retrieved
 November 1, 2017.
 
 \href{https://sraf.nd.edu/textual-analysis/resources}{LM lexicon}. Retrieved
@@ -52,13 +54,13 @@ list_lexicons[c("FEEL_en_tr", "LM_en")]
 
 }
 \references{
-Abdaoui, \enc{Azé}{Aze}, Bringay and Poncelet (2017). ``FEEL: French Expanded Emotion Lexicon''.
+Abdaoui, \enc{Azé}{Aze}, Bringay and Poncelet (2017). \strong{FEEL: French Expanded Emotion Lexicon}.
 \emph{Language Resources & Evaluation 51, 833-855}, \url{https://doi.org/10.1007/s10579-016-9364-5}.
 
-Henry (2008). ``Are  investors  influenced  by  how  earnings  press  releases  are  written?''.
-\emph{Journal  of  Business Communication 45, 363-407}, \url{https://doi.org/10.1177/0021943608319388}.
+Henry (2008). \strong{Are investors influenced by how earnings press releases are written?}.
+\emph{Journal of Business Communication 45, 363-407}, \url{https://doi.org/10.1177/0021943608319388}.
 
-Loughran and McDonald (2011). ``When is a liability not a liability? Textual analysis, dictionaries, and 10-Ks''.
+Loughran and McDonald (2011). \strong{When is a liability not a liability? Textual analysis, dictionaries, and 10-Ks}.
 \emph{Journal of Finance 66, 35-65}, \url{https://doi.org/10.1111/j.1540-6261.2010.01625.x}.
 }
 \keyword{datasets}

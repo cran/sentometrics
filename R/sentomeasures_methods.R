@@ -25,15 +25,15 @@
 #' l <- sento_lexicons(sentometrics::list_lexicons[c("LM_en")],
 #'                     sentometrics::list_valence_shifters[["en"]])
 #' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "month", lag = 3)
-#' sento_measures <- sento_measures(corpusSample, l, ctr)
+#' sm <- sento_measures(corpusSample, l, ctr)
 #'
 #' # plot sentiment measures
-#' plot(sento_measures, "features")
+#' plot(sm, "features")
 #'
 #' \dontrun{
 #' # adjust appearance of plot
 #' library("ggplot2")
-#' p <- plot(sento_measures)
+#' p <- plot(sm)
 #' p <- p +
 #'   scale_x_date(name = "year", date_labels = "%Y") +
 #'   scale_y_continuous(name = "newName")
@@ -56,7 +56,7 @@ plot.sento_measures <- function(x, group = "all", ...) {
   measuresMelt <- measuresMelt[order(rank(as.character(variable)))]
   p <- ggplot(data = measuresMelt, aes(x = date, y = value, color = variable)) +
     geom_line() +
-    geom_hline(yintercept = 0, size = 0.50, linetype = "dotted") +
+    # geom_hline(yintercept = 0, size = 0.50, linetype = "dotted") +
     scale_x_date(name = "Date", date_labels = "%m-%Y") +
     scale_y_continuous(name = "Sentiment") +
     theme_bw() +
@@ -155,7 +155,7 @@ nobs.sento_measures <- function(object, ...) {
 #' @param x a \code{sento_measures} object created using \code{\link{sento_measures}}.
 #' @param center a \code{logical} or a \code{numeric} vector, see documentation for the generic \code{\link{scale}}.
 #' Alternatively, one can provide a \code{matrix} of dimensions \code{nobs(sento_measures)} times \code{1} or
-#' \code{nmeasures(sento_measures)} with values to add to each individual observation.
+#' \code{nmeasures(sento_measures)} with values to subtract from each individual observation.
 #' @param scale a \code{logical} or a \code{numeric} vector, see documentation for the generic \code{\link{scale}}.
 #' Alternatively, one can provide a \code{matrix} of dimensions \code{nobs(sento_measures)} times \code{1} or
 #' \code{nmeasures(sento_measures)} with values to divide each individual observation by.
@@ -173,7 +173,7 @@ nobs.sento_measures <- function(object, ...) {
 #' # construct a sento_measures object to start with
 #' corpus <- sento_corpus(corpusdf = usnews)
 #' corpusSample <- quanteda::corpus_sample(corpus, size = 500)
-#' l <- sento_lexicons(list_lexicons[c("LM_en", "HENRY_en")], list_valence_shifters[["en"]])
+#' l <- sento_lexicons(list_lexicons[c("LM_en", "HENRY_en")])
 #' ctr <- ctr_agg(howTime = c("equal_weight", "linear"), by = "year", lag = 3)
 #' sento_measures <- sento_measures(corpusSample, l, ctr)
 #'
@@ -183,7 +183,7 @@ nobs.sento_measures <- function(object, ...) {
 #' n <- nobs(sento_measures)
 #' m <- nmeasures(sento_measures)
 #'
-#' # add a matrix
+#' # subtract a matrix
 #' sc2 <- scale(sento_measures, center = matrix(runif(n * m), n, m), scale = FALSE)
 #'
 #' # divide every row observation based on a one-column matrix, then center
@@ -220,12 +220,12 @@ summary.sento_measures <- function(object, ...) {
   cat("\n")
   cat("Following features are present:", sento_measures$features, "\n")
   cat("Following lexicons are used to calculate sentiment:", sento_measures$lexicons, "\n")
-  cat("Following scheme is applied for aggregation within documents:", sento_measures$within$howWithin, "\n")
-  cat("Following scheme is applied for aggregation across documents:", sento_measures$docs$howDocs, "\n")
+  cat("Following scheme is applied for aggregation within documents:", sento_measures$ctr$within$howWithin, "\n")
+  cat("Following scheme is applied for aggregation across documents:", sento_measures$ctr$docs$howDocs, "\n")
   cat("Following schemes are applied for aggregation across time:", sento_measures$time, "\n")
   cat("\n")
   cat("Aggregate average statistics:", "\n")
-  print(round(rowMeans(sento_measures$stats), 5))
+  print(round(rowMeans(sento_measures$stats, na.rm = TRUE), 5))
   cat()
 }
 
@@ -322,7 +322,7 @@ as.data.frame.sento_measures <- function(x, ...) {
 #' @param select a \code{character} vector of the lexicon, feature and time weighting scheme names, to indicate which
 #' measures need to be selected, or as a \code{list} of \code{character} vectors, possibly with separately specified
 #' combinations (consisting of one unique lexicon, one unique feature, and one unique time weighting scheme at maximum).
-#' @param delete see the \code{select} argument.
+#' @param delete see the \code{select} argument, but to delete measures.
 #' @param ... not used.
 #'
 #' @return A modified \code{sento_measures} object, with only the remaining rows and sentiment measures,

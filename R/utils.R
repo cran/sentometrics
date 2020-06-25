@@ -107,7 +107,7 @@ weights_almon <- function(n, orders = 1:3, do.inverse = TRUE, do.normalize = TRU
 #'
 #' @seealso \code{\link{ctr_agg}}
 #'
-#' @references Ghysels, Sinko and Valkanov (2007). ``MIDAS regressions: Further results and new directions''.
+#' @references Ghysels, Sinko and Valkanov (2007). \strong{MIDAS regressions: Further results and new directions}.
 #' \emph{Econometric Reviews 26, 53-90}, \url{https://doi.org/10.1080/07474930600972467}.
 #'
 #' @export
@@ -378,27 +378,24 @@ compute_stats <- function(sento_measures) {
   stats["max", ] <- measures[, lapply(.SD, max, na.rm = TRUE)]
   stats["min", ] <- measures[, lapply(.SD, min, na.rm = TRUE)]
   if (ncol(measures) > 1) {
-    corrs <- stats::cor(measures)
+    corrs <- suppressWarnings(stats::cor(measures))
     corrs[corrs == 1] <- NA
     meanCorrs <- colMeans(corrs, na.rm = TRUE)
     stats["meanCorr", ] <- meanCorrs
   } else stats <- stats[row.names(stats) != "meanCorr", , drop = FALSE]
-  return(stats)
+  stats
 }
 
 compute_BIC <- function(y, dfA, RSS, sigma2) { # BIC-like criterion
-  BIC <- RSS/(nrow(y) * sigma2) + (log(nrow(y))/nrow(y)) * dfA
-  return(BIC)
+  RSS/(nrow(y) * sigma2) + (log(nrow(y))/nrow(y)) * dfA
 }
 
 compute_AIC <- function(y, dfA, RSS, sigma2) { # AIC-like criterion
-  AIC <- RSS/(nrow(y) * sigma2) + (2/nrow(y)) * dfA
-  return(AIC)
+  RSS/(nrow(y) * sigma2) + (2/nrow(y)) * dfA
 }
 
 compute_Cp <- function(y, dfA, RSS, sigma2) { # Mallows's Cp-like criterion
-  Cp <- RSS/nrow(y) + (2/nrow(y)) * dfA * sigma2
-  return(Cp)
+  RSS/nrow(y) + (2/nrow(y)) * dfA * sigma2
 }
 
 measures_to_long <- function(measures) { # changes format of sentiment measures data.table from wide to long
@@ -453,14 +450,14 @@ sento_as_key <- function (x, ...) {
   if (length(x[[1]]) != length(unique(x[[1]]))) {
     tab <- table(x[[1]])
     culprits <- paste(paste0("   * ", sort(names(tab[tab > 1]))), collapse = "\n")
-    warning("One or more terms in the first column are repeated. Terms must be unique.\n  ",
+    warning("One or more terms in the first column are repeated. Terms must be unique.\n",
             "I found the following likely culprits:\n\n", culprits,
             "\n\nThese terms have been dropped.\n")
   }
   if (any(grepl("[A-Z]", x[[1]]))) {
     culprits2 <- grep("[A-Z]", x[[1]], value = TRUE)
     culprits2 <- paste(paste0("   * ", culprits2), collapse = "\n")
-    warning("One or more terms in the first column contain capital letters. Capitals are ignored.\n  ",
+    warning("One or more terms in the first column contain capital letters. Capitals are ignored.\n",
             "I found the following suspects:\n\n", culprits2,
             "\n\nThese terms have been lower cased.\n")
     x[[1]] <- tolower(x[[1]])

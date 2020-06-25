@@ -4,7 +4,9 @@
 \name{epu}
 \alias{epu}
 \title{Monthly Economic Policy Uncertainty Index}
-\format{A \code{data.frame} with 403 rows and 4 columns.}
+\format{
+A \code{data.frame} with 403 rows and 4 columns.
+}
 \source{
 \href{http://www.policyuncertainty.com/us_monthly.html}{Measuring Economic Policy Uncertainty}. Retrieved
 August 24, 2018.
@@ -13,7 +15,7 @@ August 24, 2018.
 data("epu")
 }
 \description{
-Monthly news-based U.S. Economic Policy Uncertainty (EPU) index (Baker, Bloom and Davis, 2015). Goes from January 1985
+Monthly news-based U.S. Economic Policy Uncertainty (EPU) index (Baker, Bloom and Davis, 2016). Goes from January 1985
 to July 2018, and includes a binomial and a multinomial example series. Following columns are present:
 
 \itemize{
@@ -32,7 +34,7 @@ head(epu)
 
 }
 \references{
-Baker, Bloom and Davis (2016). ``Measuring Economic Policy Uncertainty''.
+Baker, Bloom and Davis (2016). \strong{Measuring Economic Policy Uncertainty}.
 \emph{The Quarterly Journal of Economics 131, 1593-1636}, \url{https://doi.org/10.1093/qje/qjw024}.
 }
 \keyword{datasets}

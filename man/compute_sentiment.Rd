@@ -27,7 +27,7 @@ case of a \code{character} vector, sentiment is only computed across lexicons.}
 documents or sentences. For available options, see \code{\link{get_hows}()$words}.}
 
 \item{tokens}{a \code{list} of tokenized documents, or if \code{do.sentence = TRUE} a \code{list} of
-a \code{list} of tokenized sentences. This allows to specify your own tokenization scheme. Can result from the
+\code{list}s of tokenized sentences. This allows to specify your own tokenization scheme. Can result from the
 \pkg{quanteda}'s \code{\link[quanteda]{tokens}} function, the \pkg{tokenizers} package, or other. Make sure the tokens are
 constructed from (the texts from) the \code{x} argument, are unigrams, and preferably set to lowercase, otherwise, results
 may be spurious and errors could occur. By default set to \code{NULL}.}
@@ -75,11 +75,11 @@ lexicons and valence shifters. Word counts are based on that same tokenization.
 If the \code{lexicons} argument has no \code{"valence"} element, the sentiment computed corresponds to simple unigram
 matching with the lexicons [\emph{unigrams} approach]. If valence shifters are included in \code{lexicons} with a
 corresponding \code{"y"} column, the polarity of a word detected from a lexicon gets multiplied with the associated
-value of a valence shifter if it appears right before the detected word (examples: not good or can't defend) [\emph{bigrams} approach]. If the valence
-table contains a \code{"t"} column, valence shifters are searched for in a cluster centered around a detected polarity
-word [\emph{clusters} approach]. The latter approach is a simplified version of the one utilized by the \pkg{sentimentr}
-package. A cluster amounts to four words before and two words after a polarity word. A cluster never overlaps with
-a preceding one. Roughly speaking, the polarity of a cluster is calculated as \eqn{n(1 + 0.80d)S + \sum s}. The polarity
+value of a valence shifter if it appears right before the detected word (examples: not good or can't defend) [\emph{bigrams}
+approach]. If the valence table contains a \code{"t"} column, valence shifters are searched for in a cluster centered around
+a detected polarity word [\emph{clusters} approach]. The latter approach is a simplified version of the one utilized by the
+\pkg{sentimentr} package. A cluster amounts to four words before and two words after a polarity word. A cluster never overlaps
+with a preceding one. Roughly speaking, the polarity of a cluster is calculated as \eqn{n(1 + 0.80d)S + \sum s}. The polarity
 score of the detected word is \eqn{S}, \eqn{s} represents polarities of eventual other sentiment words, and \eqn{d} is
 the difference between the number of amplifiers (\code{t = 2}) and the number of deamplifiers (\code{t = 3}). If there
 is an odd number of negators (\code{t = 1}), \eqn{n = -1} and amplifiers are counted as deamplifiers, else \eqn{n = 1}.

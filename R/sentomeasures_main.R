@@ -208,8 +208,9 @@ ctr_agg <- function(howWithin = "proportional", howDocs = "equal_weight", howTim
 #' \item{features}{a \code{character} vector of the different features.}
 #' \item{lexicons}{a \code{character} vector of the different lexicons used.}
 #' \item{time}{a \code{character} vector of the different time weighting schemes used.}
-#' \item{stats}{a \code{data.frame} with a series of elementary statistics (mean, standard deviation, maximum, minimum, and
-#' average correlation with all other measures) for each individual sentiment measure.}
+#' \item{stats}{a \code{data.frame} with some elementary statistics (mean, standard deviation, maximum, minimum, and
+#' average correlation with the other measures) for each individual sentiment measure. In all computations, NAs are
+#' removed first.}
 #' \item{sentiment}{the document-level sentiment scores \code{data.table} with \code{"date"},
 #' \code{"word_count"} and lexicon-feature sentiment scores columns. The \code{"date"} column has the
 #' dates converted at the frequency for across-document aggregation. All zeros are replaced by \code{NA}
@@ -322,7 +323,8 @@ aggregate.sentiment <- function(x, ctr, do.full = TRUE, ...) {
     #   return(x)
     # }
   }
-  # if (!("date" %in% cols)) stop("A document-level sentiment input should have a 'date' column for full aggregation.")
+  # if (!("date" %in% cols))
+  #  stop("A document-level sentiment input should have a 'date' column for full aggregation.")
 
   aggDocs <- aggregate_docs(x, by = by, how = howDocs, weightingParamDocs = weightingParamDocs)
   aggDocs$ctr <- ctr
@@ -355,7 +357,7 @@ aggregate_docs <- function(sent, by, how = get_hows()$docs, weightingParamDocs) 
   lexNames <- unique(sapply(names, "[", 1))
   features <- unique(sapply(names, "[", 2))
 
-  data.table::setorder(sent, "date", na.last = FALSE)
+  data.table::setorder(sent, date, na.last = FALSE)
   attribWeights <- list(W = NA, B = NA) # list with weights useful in later attribution analysis
 
   # reformat dates so they can be aggregated at the specified 'by' level, and cast to Date format
@@ -374,8 +376,11 @@ aggregate_docs <- function(sent, by, how = get_hows()$docs, weightingParamDocs) 
   sent$date <- dates
 
   do.ignoreZeros <- weightingParamDocs$do.ignoreZeros
-  if (do.ignoreZeros == TRUE) # ignore documents with zero sentiment in aggregation
-    sent[, names(sent)] <- sent[, names(sent), with = FALSE][, lapply(.SD, function(x) replace(x, which(x == 0), NA))]
+  if (do.ignoreZeros == TRUE) { # ignore documents with zero sentiment in aggregation
+    nms <- names(sent)[-c(1:3)]
+    sent[, nms] <-
+      sent[, lapply(.SD, function(x) replace(x, which(x == 0), NA)), .SDcols = nms]
+  }
 
   alphaExpDocs <- weightingParamDocs$alphaExpDocs
   weights <- weights_across(sent, how, do.ignoreZeros, alphaExpDocs, by = "date")
