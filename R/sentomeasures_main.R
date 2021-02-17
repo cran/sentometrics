@@ -340,14 +340,15 @@ aggregate_sentences <- function(sentiment, how, weightingParamDocs) {
 
   weights <- weights_across(sentiment, how, do.ignoreZeros, alphaExpDocs, by = "id")
 
-  if ("date" %in% colnames(sentiment)) {
+  if ("date" %in% colnames(sentiment)) { # inherits(sentiment, "sentiment")
     sw <- data.table::data.table(id = sentiment[["id"]], sentiment[, .(date)], wc, sentiment[, -1:-4] * weights)
     s <- sw[, lapply(.SD, sum, na.rm = TRUE), by = c("id", "date")] # assumes all id and date combinations are unique
+    class(s) <- c("sentiment", class(s))
   } else {
     sw <- data.table::data.table(id = sentiment[["id"]], wc, sentiment[, -1:-3] * weights)
     s <- sw[, lapply(.SD, sum, na.rm = TRUE), by = "id"]
   }
-  class(s) <- c("sentiment", class(s))
+
   s
 }
 
@@ -509,7 +510,7 @@ peakdates <- function(sento_measures, n = 10, type = "both", do.average = FALSE)
     dates <- get_dates(sento_measures)
   } else dates <- rep(get_dates(sento_measures), m)
   if (type == "both") measures <- abs(measures)
-  indx <- order(measures, decreasing = ifelse(type == "neg", FALSE, TRUE))[1:(m * n)]
+  indx <- order(unlist(measures), decreasing = ifelse(type == "neg", FALSE, TRUE))[1:(m * n)]
   peakDates <- unique(dates[indx])[1:n]
   peakDates
 }

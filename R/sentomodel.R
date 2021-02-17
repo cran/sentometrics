@@ -61,9 +61,9 @@
 #' @seealso \code{\link{sento_model}}
 #'
 #' @references Tibshirani and Taylor (2012). \strong{Degrees of freedom in LASSO problems}.
-#' \emph{The Annals of Statistics 40, 1198-1232}, \url{https://doi.org/10.1214/12-AOS1003}.
+#' \emph{The Annals of Statistics 40, 1198-1232}, \doi{10.1214/12-AOS1003}.
 #' @references Zou, Hastie and Tibshirani (2007). \strong{On the degrees of freedom of the LASSO}.
-#' \emph{The Annals of Statistics 35, 2173-2192}, \url{https://doi.org/10.1214/009053607000000127}.
+#' \emph{The Annals of Statistics 35, 2173-2192}, \doi{10.1214/009053607000000127}.
 #'
 #' @examples
 #' # information criterion based model control functions
@@ -206,7 +206,7 @@ ctr_model <- function(model = c("gaussian", "binomial", "multinomial"), type = c
 #' @param ctr output from a \code{\link{ctr_model}} call.
 #'
 #' @return If \code{ctr$do.iter = FALSE}, a \code{sento_model} object which is a \code{list} containing:
-#' \item{reg}{optimized regression, i.e., a model-specific \code{glmnet} object, including for example the estimated
+#' \item{reg}{optimized regression, i.e., a model-specific \pkg{glmnet} object, including for example the estimated
 #' coefficients.}
 #' \item{model}{the input argument \code{ctr$model}, to indicate the type of model estimated.}
 #' \item{alpha}{calibrated alpha.}
@@ -806,7 +806,7 @@ predict.sento_model <- function(object, newx, type = "response", offset = NULL, 
 #' @seealso \code{\link{sento_model}}, \code{\link[MCS]{MCSprocedure}}
 #'
 #' @references Hansen, Lunde and Nason (2011). \strong{The model confidence set}. \emph{Econometrica 79, 453-497},
-#' \url{https://doi.org/10.3982/ECTA5771}.
+#' \doi{10.3982/ECTA5771}.
 #'
 #' @examples
 #' \dontrun{

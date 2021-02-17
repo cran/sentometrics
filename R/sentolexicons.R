@@ -11,14 +11,14 @@
 #'
 #' @param lexiconsIn a named \code{list} of (raw) lexicons, each element as a \code{data.table} or a \code{data.frame} with
 #' respectively a \code{character} column (the words) and a \code{numeric} column (the polarity scores). This argument can be
-#' one of the built-in lexicons accessible via \code{list_lexicons}.
+#' one of the built-in lexicons accessible via \code{sentometrics::list_lexicons}.
 #' @param valenceIn a single valence word list as a \code{data.table} or a \code{data.frame} with respectively a \code{"x"}
 #' and a \code{"y"} or \code{"t"} column. The first column has the words, \code{"y"} has the values for bigram
 #' shifting, and \code{"t"} has the types of the valence shifter for a clustered approach to sentiment calculation
 #' (supported types: \code{1} = negators, \code{2} = amplifiers, \code{3} = deamplifiers, \code{4} = adversative conjunctions).
 #' Type \code{4} is only used in a clusters-based sentence-level sentiment calculation.
 #' If three columns are provided, only the first two will be considered. This argument can be one of the
-#' built-in valence word lists accessible via \code{list_valence_shifters}. A word that appears in both a
+#' built-in valence word lists accessible via \code{sentometrics::list_valence_shifters}. A word that appears in both a
 #' lexicon and the valence word list is prioritized as a lexical entry during sentiment calculation. If
 #' \code{NULL}, valence shifting is not applied in the sentiment analysis.
 #' @param do.split a \code{logical} that if \code{TRUE} splits every lexicon into a separate positive polarity and negative
@@ -82,6 +82,7 @@ sento_lexicons <- function(lexiconsIn, valenceIn = NULL, do.split = FALSE) {
   lexNames <- names(lexiconsIn)
   lexicons <- suppressWarnings(lapply(lexiconsIn, sento_as_key)) # suppress warnings on removal of duplicated values
   names(lexicons) <- lexNames
+
   if (do.split == TRUE) { # split each lexicon into a positive and a negative polarity words only lexicon
     lexiconsPos <- lapply(lexicons, function(lex) return(lex[lex$y > 0]))
     names(lexiconsPos) <- paste0(names(lexicons), "_POS")
@@ -90,7 +91,8 @@ sento_lexicons <- function(lexiconsIn, valenceIn = NULL, do.split = FALSE) {
     lexicons <- c(lexiconsPos, lexiconsNeg)
   }
 
-  lexicons <- lapply(lexicons, function(l) l[!stringi::stri_detect(l$x, regex = "\\s+"), ])
+  lexicons <- lapply(lexicons, function(l) l[!stringi::stri_detect(l$x, regex = "\\s+"), ]) # only unigrams
+
   if (!is.null(valenceIn)) {
     if (!all(names(valenceIn) %in% c("x", "y", "t")) || !(ncol(valenceIn) %in% c(2, 3)))
       stop("Provide columns 'x' and 'y' and/or 't' to the 'valenceIn' argument.")

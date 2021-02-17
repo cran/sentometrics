@@ -5,7 +5,7 @@
 #'
 #' @description Formalizes a collection of texts into a \code{sento_corpus} object derived from the \pkg{quanteda}
 #' \code{\link[quanteda]{corpus}} object. The \pkg{quanteda} package provides a robust text mining infrastructure
-#' (see \href{http://quanteda.io/index.html}{quanteda}), including a handy corpus manipulation toolset. This function
+#' (see their \href{http://quanteda.io/index.html}{website}), including a handy corpus manipulation toolset. This function
 #' performs a set of checks on the input data and prepares the corpus for further analysis by structurally
 #' integrating a date dimension and numeric metadata features.
 #'
@@ -27,7 +27,7 @@
 #' languages is expected in the \code{compute_sentiment} function.
 #'
 #' @param corpusdf a \code{data.frame} (or a \code{data.table}, or a \code{tbl}) with as named columns: a document \code{"id"}
-#' column (in \code{character} mode), a \code{"date"} column (as \code{"yyyy-mm-dd"}), a \code{"texts"} column
+#' column (coercible to \code{character} mode), a \code{"date"} column (as \code{"yyyy-mm-dd"}), a \code{"texts"} column
 #' (in \code{character} mode), an optional \code{"language"} column (in \code{character} mode), and a series of
 #' feature columns of type \code{numeric}, with values between 0 and 1 to specify the degree of connectedness of
 #' a feature to a document. Features could be for instance topics (e.g., legal or economic) or article sources (e.g., online or
@@ -91,10 +91,9 @@ sento_corpus <- function(corpusdf, do.clean = FALSE) {
   if ("language" %in% cols) {
     nonfeatures <- c(nonfeatures, "language")
   }
-  # check if feature names are correctly formatted
+
   features <- cols[!(cols %in% nonfeatures)]
-  if (!is_names_correct(features))
-    stop("At least one feature name contains '-'. Please provide proper names.")
+  check_feature_names(features) # check if feature names are correctly formatted
 
   corpusdf <- corpusdf[, c(nonfeatures, features)]
   data.table::setorder(corpusdf, date) # oldest comes first
@@ -110,7 +109,7 @@ sento_corpus <- function(corpusdf, do.clean = FALSE) {
       stop(paste0("Names of feature columns are not unique. Following names occur at least twice: ",
                   paste0(duplics, collapse = ", "), "."))
     }
-    isNumeric <- sapply(features, function(x) return(is.numeric(corpusdf[[x]])))
+    isNumeric <- sapply(features, function(x) is.numeric(corpusdf[[x]]))
     if (any(!isNumeric)) {
       toDrop <- names(which(!isNumeric))
       corpusdf[, toDrop] <- NULL
@@ -222,7 +221,7 @@ add_features <- function(corpus, featuresdf = NULL, keywords = NULL, do.binary =
   check_class(corpus, "corpus")
 
   classIn <- class(corpus)
-  class(corpus) <- c("corpus", "list") # needed to avoid use of `docvars<-.sento_corpus`() function
+  class(corpus) <- c("corpus", "character") # needed to avoid use of `docvars<-.sento_corpus`() function
 
   if (!is.null(featuresdf)) {
     stopifnot(is.data.frame(featuresdf))
