@@ -34,7 +34,7 @@ compute_sentiment_lexicons <- function(x, tokens, dv, lexicons, how, do.sentence
   RcppParallel::setThreadOptions(numThreads = threads)
   if (is_only_character(x)) x <- quanteda::corpus(x)
   if (do.sentence == TRUE) {
-    tokens <- tokenize_texts(quanteda::texts(x), tokens, type = "sentence")
+    tokens <- tokenize_texts(as.character(x), tokens, type = "sentence")
     valenceType <- ifelse(is.null(lexicons[["valence"]]), 0,
                           ifelse(colnames(lexicons[["valence"]])[2] == "y", 1, 2))
     s <- compute_sentiment_sentences(unlist(tokens, recursive = FALSE),
@@ -50,7 +50,7 @@ compute_sentiment_lexicons <- function(x, tokens, dv, lexicons, how, do.sentence
       data.table::setcolorder(s, c("id", "sentence_id", "word_count"))
     }
   } else {
-    tokens <- tokenize_texts(quanteda::texts(x), tokens, type = "word")
+    tokens <- tokenize_texts(as.character(x), tokens, type = "word")
     if (is.null(lexicons[["valence"]])) { # call to C++ code
       s <- compute_sentiment_onegrams(tokens, lexicons, how)
     } else {
@@ -136,14 +136,14 @@ compute_sentiment_multiple_languages <- function(x, lexicons, languages, feature
 #' @param how a single \code{character} vector defining how to perform aggregation within
 #' documents or sentences. For available options, see \code{\link{get_hows}()$words}.
 #' @param tokens a \code{list} of tokenized documents, or if \code{do.sentence = TRUE} a \code{list} of
-#' \code{list}s of tokenized sentences. This allows to specify your own tokenization scheme. Can result from the
-#' \pkg{quanteda}'s \code{\link[quanteda]{tokens}} function, the \pkg{tokenizers} package, or other. Make sure the tokens are
-#' constructed from (the texts from) the \code{x} argument, are unigrams, and preferably set to lowercase, otherwise, results
-#' may be spurious and errors could occur. By default set to \code{NULL}.
+#' \code{list}s of tokenized sentences. This allows to specify your own tokenization scheme. Can indirectly result from
+#' the \pkg{quanteda}'s \code{\link[quanteda]{tokens}} function, the \pkg{tokenizers} package, or other (see examples).
+#' Make sure the tokens are constructed from (the texts from) the \code{x} argument, are unigrams, and preferably
+#' set to lowercase, otherwise, results may be spurious and errors could occur. By default set to \code{NULL}.
 #' @param nCore a positive \code{numeric} that will be passed on to the \code{numThreads} argument of the
 #' \code{\link[RcppParallel]{setThreadOptions}} function, to parallelize the sentiment computation across texts. A
-#' value of 1 (default) implies no parallelization. Parallelization may improve speed of the sentiment
-#' computation only for sufficiently large corpora.
+#' value of 1 (default) implies no parallelization. Parallelization will improve speed of the sentiment
+#' computation only for a sufficiently large corpus.
 #' @param do.sentence a \code{logical} to indicate whether the sentiment computation should be done on
 #' sentence-level rather than document-level. By default \code{do.sentence = FALSE}.
 #'
@@ -405,7 +405,7 @@ compute_sentiment.SimpleCorpus <- compiler::cmpfun(.compute_sentiment.SimpleCorp
 #' m4 <- merge(s4, s5)
 #' nrow(m4) == nrow(m2) # TRUE
 #'
-#' # different methods and weighting add rows and columns
+#' # different methods and weighting adds rows and columns
 #' ## rows are added only when the different weighting
 #' ## approach for a specific method gives other sentiment values
 #' m5 <- merge(s4, s7)
