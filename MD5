@@ -1,6 +1,6 @@
-042c3fc352ac10be44400ae79ff8c67c *DESCRIPTION
+eaa03b4940d52b8c5c8ee3b56ec963d8 *DESCRIPTION
 757b247a607811615dbe358acded001d *NAMESPACE
-2d97a00f06f035edce35489eb163deba *NEWS.md
+15abd08664d1a25281a502219216bba8 *NEWS.md
 eb0929e4c4179baa4a974817f779747c *R/RcppExports.R
 d49d725d88e8980a1ede70cfa8173dbe *R/attribution.R
 b7ad7d33c7bcce5cf03c01ea0d2c9ba3 *R/deprecated.R
@@ -10,17 +10,17 @@ b958d42e9038d3db88a8e44ce3c8d619 *R/sentocorpus.R
 3f9c719b821459bc3430ca77b65e8575 *R/sentomeasures_main.R
 578e752ec6570d87031b8ded118eb275 *R/sentomeasures_measures_xyz.R
 b3acbc61b9bb8d7cf8f78ccda41d94d1 *R/sentomeasures_methods.R
-9cbc4890dd5d749fd9ad39298fff0f95 *R/sentometrics.R
-8f93c92d1c4bae62d9cc5a81d82dd43c *R/sentomodel.R
+f2260e8cd73875d51b86cb9d4249e32b *R/sentometrics.R
+a70225d5498d2f14800c814b75ba265a *R/sentomodel.R
 3d83db0661a0d68b6ac269193fe87db4 *R/utils.R
 8615c0c2dbd8fc395a5ba25db44d6652 *R/zzz.R
-2bfa0a07f0e1504bf99c08b46007c32b *README.md
-8cc774abf9280f3f4521b3b0c3635b38 *build/partial.rdb
+562fcd03b4550e4004f60033e5eecdcd *README.md
+2627dec385e796c1c068bad03e32eba5 *build/partial.rdb
 8e89b3beca55a6184659c565d68b4a9d *data/epu.rda
 c6578867573b263fd7eb1ec7b77c4a5a *data/list_lexicons.rda
 5b500b70239145e807a6706d8482c62b *data/list_valence_shifters.rda
 364d1a54700aea6edfd91ec806971524 *data/usnews.rda
-a4466d4d53ed8ddd25b3210cbdf5926d *inst/CITATION
+40cb4f4f867d424258f9da3b988b26f3 *inst/CITATION
 36ca1dd6bdc27b0158c509e4b173fea5 *inst/extdata/test_data.rda
 c12abf9739dc299d412f13ee4f58ea86 *man/add_features.Rd
 4af5481bf23d2585a0d4c70989bee92e *man/aggregate.sentiment.Rd
@@ -66,7 +66,7 @@ d41bf4addd77827088abfd283655b47d *man/sento_lexicons.Rd
 1c5b67c1c30b6b7a34b21367bc85c492 *man/sento_model.Rd
 b118a2f757fced7b72d0b294c20e3c3a *man/sentometrics-defunct.Rd
 a1dfeb0d6617eae31efb226f961bc009 *man/sentometrics-deprecated.Rd
-ffbbe37f8e66feff857d95a5a7fa045c *man/sentometrics-package.Rd
+cdcdfed48d900feeb22aa05a2a5581f3 *man/sentometrics-package.Rd
 2a92ba8ebd2f50d95224833f1850935f *man/subset.sento_measures.Rd
 ebc165cd2f6cfb6b9248e7bb753e32d6 *man/usnews.Rd
 59ec5441ca56cafb8ecb1d36e2eecbd8 *man/weights_almon.Rd
@@ -92,5 +92,5 @@ c2ccb009b5ef595bd1f8826e32b4554b *tests/testthat/test_aggregation.R
 74641f15022f71ce0ceb17482200636c *tests/testthat/test_corpus_building.R
 920aaa2771cc0057ec141870cf0cb7b4 *tests/testthat/test_measures_manipulation.R
 2e83624f39d805fc55ad0a5854133dc1 *tests/testthat/test_methods_sentomeasures.R
-47f202b3ac6130c64b00e24bf900e71c *tests/testthat/test_modelling.R
+16e4172c9e0b9f9704f950be47bc37e1 *tests/testthat/test_modeling.R
 0612ad5875722cbae026b3219c358703 *tests/testthat/test_sentiment_computation.R

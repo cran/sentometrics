@@ -2,7 +2,7 @@ Package: sentometrics
 Type: Package
 Title: An Integrated Framework for Textual Sentiment Time Series
         Aggregation and Prediction
-Version: 0.8.4
+Version: 1.0.0
 Authors@R: c(person("Samuel", "Borms", email = "borms_sam@hotmail.com", role = c("aut", "cre"), comment = c(ORCID = "0000-0001-9533-1870")),
   person("David", "Ardia", email = "david.ardia@hec.ca", role = c("aut"), comment = c(ORCID = "0000-0003-2823-782X")),
   person("Keven", "Bluteau", email = "keven.bluteau@unine.ch", role = c("aut"), comment = c(ORCID = "0000-0003-2990-4807")),
@@ -10,7 +10,7 @@ Authors@R: c(person("Samuel", "Borms", email = "borms_sam@hotmail.com", role = c
   person("Jeroen", "Van Pelt", email = "jeroenvanpelt@hotmail.com", role = c("ctb")),
   person("Andres", "Algaba", email = "andres.algaba@vub.be", role = c("ctb")))
 Maintainer: Samuel Borms <borms_sam@hotmail.com>
-Description: Optimized prediction based on textual sentiment, accounting for the intrinsic challenge that sentiment can be computed and pooled across texts and time in various ways. See Ardia et al. (2020) <doi:10.2139/ssrn.3067734>.
+Description: Optimized prediction based on textual sentiment, accounting for the intrinsic challenge that sentiment can be computed and pooled across texts and time in various ways. See Ardia et al. (2021) <doi:10.18637/jss.v099.i02>.
 Depends: R (>= 3.3.0)
 License: GPL (>= 2)
 BugReports: https://github.com/SentometricsResearch/sentometrics/issues
@@ -26,7 +26,7 @@ LinkingTo: Rcpp, RcppArmadillo, RcppParallel
 RoxygenNote: 7.1.1
 SystemRequirements: GNU make
 NeedsCompilation: yes
-Packaged: 2021-04-19 17:37:52 UTC; saborms
+Packaged: 2021-08-17 16:45:09 UTC; saborms
 Author: Samuel Borms [aut, cre] (<https://orcid.org/0000-0001-9533-1870>),
   David Ardia [aut] (<https://orcid.org/0000-0003-2823-782X>),
   Keven Bluteau [aut] (<https://orcid.org/0000-0003-2990-4807>),
@@ -34,4 +34,4 @@ Author: Samuel Borms [aut, cre] (<https://orcid.org/0000-0001-9533-1870>),
   Jeroen Van Pelt [ctb],
   Andres Algaba [ctb]
 Repository: CRAN
-Date/Publication: 2021-04-19 22:00:07 UTC
+Date/Publication: 2021-08-18 07:50:02 UTC

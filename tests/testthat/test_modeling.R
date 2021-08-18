@@ -126,7 +126,7 @@ test_that("Plot is a ggplot object", {
 })
 
 # ctr_model
-test_that("Modelling control function breaks when wrong inputs supplied", {
+test_that("Modeling control function breaks when wrong inputs supplied", {
   expect_error(ctr_model(model = "stuck", type = "puzzle", do.intercept = "yes", do.difference = "yep", nCore = "yip"))
   expect_error(ctr_model(alphas = c(-1, 0.4, 0.7, 1.2), lambdas = seq(-10, 100, by = 2), oos = -4, start = 0))
   expect_error(ctr_model(type = "cv"))
