@@ -18,7 +18,7 @@
 
 The **`sentometrics`** package is an **integrated framework for textual sentiment time series aggregation and prediction**. It accounts for the intrinsic challenge that textual sentiment can be computed in many different ways, as well as the large number of possibilities to pool sentiment into a time series index. The package integrates the fast _quantification_ of sentiment from texts, the _aggregation_ into different sentiment time series, and the _prediction_ based on these measures. All in one coherent workflow!
 
-See the [package website](https://sentometrics-research.com/sentometrics/) and the [vignette](https://doi.org/10.2139/ssrn.3067734) for plenty of examples and details. We also refer to our [survey](https://doi.org/10.1111/joes.12370) organized as an overview of the required steps in a typical econometric analysis of sentiment from alternative (such as textual) data, and following companion [web page](https://sborms.github.io/econometrics-meets-sentiment/).
+See the [package website](https://sentometrics-research.com/sentometrics/) and the [vignette](https://doi.org/10.18637/jss.v099.i02) published in the Journal of Statistical Software for plenty of examples and details. We also refer to our [survey](https://doi.org/10.1111/joes.12370) organized as an overview of the required steps in a typical econometric analysis of sentiment from alternative (such as textual) data, and following companion [web page](https://sborms.github.io/econometrics-meets-sentiment/).
 
 ### Installation
 
@@ -36,7 +36,7 @@ devtools::install_github("SentometricsResearch/sentometrics")
 
 ### Shiny application
 
-For a visual interface as a Shiny application of the package's core functionalities, install the [**`sentometrics.app`**](https://github.com/SentometricsResearch/sentometrics.app) package, and run the `sento_app()` function.
+For a visual interface as a Shiny application of the package's core functionalities, install the [**`sentometrics.app`**](https://github.com/DataWanderers/sentometrics.app) package, and run the `sento_app()` function.
 
 ### Reference
 
@@ -46,5 +46,5 @@ Please cite **`sentometrics`** in publications. Use `citation("sentometrics")`.
 
 This software package originates from a
 [Google Summer of Code 2017](https://github.com/rstats-gsoc/gsoc2017/wiki/Sentometrics:-An-integrated-framework-for-text-based-multivariate-time-series-modeling-and-forecasting) project, was further developed 
-during a follow-up [Google Summer of Code 2019](https://github.com/rstats-gsoc/gsoc2019/wiki/sentometrics) project, and benefited generally from financial support by [Innoviris](https://innoviris.brussels), [IVADO](https://ivado.ca/), [swissuniversities](https://www.swissuniversities.ch), and the [Swiss National Science Foundation](http://www.snf.ch) (grants #179281 and #191730).
+during a follow-up [Google Summer of Code 2019](https://github.com/rstats-gsoc/gsoc2019/wiki/sentometrics) project, and benefited generally from financial support by [Innoviris](https://www.innoviris.brussels/), [IVADO](https://ivado.ca/), [swissuniversities](https://www.swissuniversities.ch), and the [Swiss National Science Foundation](http://www.snf.ch) (grants #179281 and #191730).
 
